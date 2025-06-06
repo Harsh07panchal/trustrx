@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FileText, UserRound, CalendarClock, ShieldCheck, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { motion } from 'framer-motion';
 
 const PatientDashboard = () => {
   const { userProfile } = useAuth();
+  const navigate = useNavigate();
+  
   const [recentRecords, setRecentRecords] = useState([
     { id: '1', name: 'Annual Physical Results', date: '2023-06-15', doctor: 'Dr. Sarah Johnson', type: 'labResults' },
     { id: '2', name: 'Chest X-Ray', date: '2023-04-22', doctor: 'Dr. Michael Chen', type: 'imaging' },
@@ -172,9 +174,12 @@ const PatientDashboard = () => {
       <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm p-6 border border-neutral-200">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold">Storage Usage</h3>
-          <Link to="/patient/subscription" className="text-primary-500 flex items-center hover:text-primary-600 text-sm font-medium">
+          <button 
+            onClick={() => navigate('/patient/subscription')} 
+            className="text-primary-500 flex items-center hover:text-primary-600 text-sm font-medium"
+          >
             Upgrade Plan <ArrowRight size={16} className="ml-1" />
-          </Link>
+          </button>
         </div>
         
         <div className="mb-2 flex items-center justify-between">
@@ -194,7 +199,12 @@ const PatientDashboard = () => {
         
         <p className="mt-4 text-sm text-neutral-500">
           You're currently on the <span className="font-medium">Free</span> plan. 
-          Upgrade to get more storage and premium features.
+          <button 
+            onClick={() => navigate('/patient/subscription')}
+            className="text-primary-500 hover:text-primary-600 ml-1"
+          >
+            Upgrade to get more storage and premium features.
+          </button>
         </p>
       </motion.div>
     </motion.div>
