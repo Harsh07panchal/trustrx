@@ -78,11 +78,21 @@ const Register = () => {
             setError('This domain is not authorized for authentication. Please contact the administrator to add this domain to Firebase authorized domains.');
             break;
           case 'auth/popup-blocked':
-            setError('Popup blocked by your browser. Please allow popups for this site and try again.');
+            setError(
+              <div>
+                <p className="mb-2">The Google sign-in popup was blocked by your browser.</p>
+                <p className="text-sm">To fix this:</p>
+                <ol className="list-decimal ml-4 text-sm mt-1">
+                  <li>Look for a popup blocked icon (🚫) in your browser's address bar</li>
+                  <li>Click the icon and select "Always allow popups from localhost:5173"</li>
+                  <li>Try signing in with Google again</li>
+                </ol>
+              </div>
+            );
             break;
           case 'auth/cancelled-popup-request':
-            setError('Authentication cancelled. Please try again.');
-            break;
+            // Don't show error for cancelled requests as it's intentional
+            return;
           case 'auth/api-key-not-valid':
             setError('Authentication service is not properly configured. Please contact support.');
             break;
