@@ -1,4 +1,4 @@
-import { Configuration, OpenAIApi } from 'npm:openai@^4.28.0';
+import OpenAI from 'npm:openai@^4.28.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,9 +15,9 @@ Deno.serve(async (req) => {
     const { message } = await req.json();
 
     // Initialize OpenAI
-    const openai = new OpenAIApi(new Configuration({
+    const openai = new OpenAI({
       apiKey: Deno.env.get('OPENAI_API_KEY'),
-    }));
+    });
 
     // Get AI response
     const completion = await openai.chat.completions.create({

@@ -50,44 +50,26 @@ const CustomerSupport = () => {
     scrollToBottom();
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
+      const response = await fetch('https://yfjaezthvfbgqswaffwo.supabase.co/functions/v1/chat', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlmamFlenRodmZiZ3Fzd2FmZndvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkxODE1NjYsImV4cCI6MjA2NDc1NzU2Nn0.M5I495dV6hjleGgPEESQT-OTDW7PyDWgegfs6N0UY54`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ message: text, type }),
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Server responded with ${response.status}: ${errorText}`);
+        throw new Error(`Server responded with ${response.status}: ${await response.text()}`);
       }
 
-      if (type === 'voice') {
-        const audioBlob = await response.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
-        if (audioRef.current) {
-          audioRef.current.src = audioUrl;
-          audioRef.current.play();
-        }
-      } else {
-        const contentType = response.headers.get('content-type');
-        let data;
-        
-        if (contentType && contentType.includes('application/json')) {
-          data = await response.json();
-        } else {
-          const textResponse = await response.text();
-          data = { response: textResponse };
-        }
-
-        setMessages(prev => [...prev, {
-          type: 'ai',
-          content: data.response,
-          timestamp: new Date(),
-        }]);
-      }
+      const data = await response.json();
+      
+      setMessages(prev => [...prev, {
+        type: 'ai',
+        content: data.response,
+        timestamp: new Date(),
+      }]);
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages(prev => [...prev, {
