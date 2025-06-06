@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply text-neutral-800;
+  }
+
+  body {
+    @apply font-sans bg-neutral-50;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-md font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-primary {
+    @apply btn bg-primary-500 text-white hover:bg-primary-600 focus:ring-2 focus:ring-primary-300 focus:outline-none;
+  }
+  
+  .btn-secondary {
+    @apply btn bg-secondary-900 text-white hover:bg-secondary-800 focus:ring-2 focus:ring-secondary-300 focus:outline-none;
+  }
+  
+  .btn-accent {
+    @apply btn bg-accent-500 text-secondary-900 hover:bg-accent-600 focus:ring-2 focus:ring-accent-300 focus:outline-none;
+  }
+  
+  .btn-outline {
+    @apply btn border-2 border-primary-500 text-primary-500 hover:bg-primary-50 focus:ring-2 focus:ring-primary-300 focus:outline-none;
+  }
+  
+  .btn-ghost {
+    @apply btn text-neutral-700 hover:bg-neutral-100 focus:ring-2 focus:ring-neutral-200 focus:outline-none;
+  }
+
+  .input {
+    @apply px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-500;
+  }
+
+  .card {
+    @apply bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden transition-all duration-200;
+  }
+  
+  .card-hover {
+    @apply hover:shadow-md hover:border-primary-200;
+  }
+
+  .verified-badge {
+    @apply inline-flex items-center text-xs font-medium text-success-700 bg-success-100 px-2 py-0.5 rounded-full;
+  }
+
+  .tab {
+    @apply px-4 py-2 font-medium border-b-2 border-transparent text-neutral-500 transition-all duration-200;
+  }
+  
+  .tab-active {
+    @apply border-primary-500 text-primary-500;
+  }
+
+  .progress-bar {
+    @apply h-2 rounded-full bg-neutral-200 overflow-hidden;
+  }
+
+  .progress-value {
+    @apply h-full bg-primary-500 rounded-full;
+  }
+}

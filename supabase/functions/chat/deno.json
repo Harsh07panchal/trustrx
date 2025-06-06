@@ -1,0 +1,5 @@
+{
+  "imports": {
+    "npm:openai@^4.28.0": "npm:openai@4.28.0"
+  }
+}
