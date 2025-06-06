@@ -14,7 +14,7 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<'patient' | 'doctor'>('patient');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | JSX.Element>('');
   const [isLoading, setIsLoading] = useState(false);
   
   const handleRegister = async (e: React.FormEvent) => {
@@ -68,8 +68,29 @@ const Register = () => {
     try {
       setIsLoading(true);
       setError('');
-      await signInWithGoogle();
-      navigate('/dashboard');
+      
+      // Create a promise that resolves when the popup is handled
+      const authResult = await new Promise(async (resolve, reject) => {
+        try {
+          // Add event listener for popup messages
+          const messageHandler = (event: MessageEvent) => {
+            if (event.data?.type === 'googleAuthSuccess') {
+              window.removeEventListener('message', messageHandler);
+              resolve(true);
+            }
+          };
+          window.addEventListener('message', messageHandler);
+          
+          await signInWithGoogle();
+          resolve(true);
+        } catch (error) {
+          reject(error);
+        }
+      });
+      
+      if (authResult) {
+        navigate('/dashboard');
+      }
     } catch (err) {
       console.error('Google registration error:', err);
       if (err instanceof FirebaseError) {
