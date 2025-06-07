@@ -1,6 +1,4 @@
-{
-  "id": "doctor-search-update",
-  "content": `import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useLoadScript, GoogleMap, Marker } from '@react-google-maps/api';
 import { Search, MapPin, Star, Clock, FilterX, Filter, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -166,21 +164,21 @@ const DoctorSearch = () => {
               </label>
               <div className="flex rounded-md overflow-hidden border border-neutral-200">
                 <button
-                  className={\`flex-1 px-4 py-2 \${
+                  className={`flex-1 px-4 py-2 ${
                     sortBy === 'rating'
                       ? 'bg-primary-50 text-primary-700'
                       : 'bg-white text-neutral-700'
-                  }\`}
+                  }`}
                   onClick={() => setSortBy('rating')}
                 >
                   Top Rated
                 </button>
                 <button
-                  className={\`flex-1 px-4 py-2 \${
+                  className={`flex-1 px-4 py-2 ${
                     sortBy === 'experience'
                       ? 'bg-primary-50 text-primary-700'
                       : 'bg-white text-neutral-700'
-                  }\`}
+                  }`}
                   onClick={() => setSortBy('experience')}
                 >
                   Experience
@@ -402,5 +400,4 @@ const DoctorSearch = () => {
   );
 };
 
-export default DoctorSearch;`
-}
+export default DoctorSearch;

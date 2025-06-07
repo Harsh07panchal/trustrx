@@ -1,6 +1,4 @@
-{
-  "id": "doctor-registration",
-  "content": `import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Eye, EyeOff, Upload, Check } from 'lucide-react';
@@ -92,9 +90,9 @@ const Register = () => {
 
         // Upload documents
         const [identityUrl, licenseUrl, certificationUrl] = await Promise.all([
-          uploadFile(formData.identityDocument, \`documents/\${formData.email}/identity\`),
-          uploadFile(formData.medicalLicense, \`documents/\${formData.email}/license\`),
-          uploadFile(formData.workCertification, \`documents/\${formData.email}/certification\`)
+          uploadFile(formData.identityDocument, `documents/${formData.email}/identity`),
+          uploadFile(formData.medicalLicense, `documents/${formData.email}/license`),
+          uploadFile(formData.workCertification, `documents/${formData.email}/certification`)
         ]);
 
         // Create user with additional doctor info
@@ -229,22 +227,22 @@ const Register = () => {
                 <button
                   type="button"
                   onClick={() => setFormData(prev => ({ ...prev, role: 'patient' }))}
-                  className={\`py-2 px-4 rounded-md border \${
+                  className={`py-2 px-4 rounded-md border ${
                     formData.role === 'patient'
                       ? 'bg-primary-50 border-primary-500 text-primary-700'
                       : 'border-neutral-300 text-neutral-700 hover:bg-neutral-50'
-                  }\`}
+                  }`}
                 >
                   Patient
                 </button>
                 <button
                   type="button"
                   onClick={() => setFormData(prev => ({ ...prev, role: 'doctor' }))}
-                  className={\`py-2 px-4 rounded-md border \${
+                  className={`py-2 px-4 rounded-md border ${
                     formData.role === 'doctor'
                       ? 'bg-primary-50 border-primary-500 text-primary-700'
                       : 'border-neutral-300 text-neutral-700 hover:bg-neutral-50'
-                  }\`}
+                  }`}
                 >
                   Doctor
                 </button>
@@ -441,5 +439,4 @@ const Register = () => {
   );
 };
 
-export default Register;`
-}
+export default Register;
