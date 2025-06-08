@@ -18,7 +18,9 @@
     "framer-motion": "^11.0.8",
     "@hcaptcha/react-hcaptcha": "^1.10.1",
     "react-dropzone": "^14.2.3",
-    "js-sha256": "^0.11.0"
+    "js-sha256": "^0.11.0",
+    "@react-google-maps/api": "^2.19.3",
+    "react-audio-voice-recorder": "^2.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
