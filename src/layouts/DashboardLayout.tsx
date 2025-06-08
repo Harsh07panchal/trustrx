@@ -60,7 +60,7 @@ const DashboardLayout = () => {
           <nav className="space-y-1">
             {userProfile?.role === 'patient' ? (
               <>
-                <NavItem to="/patient/dashboard\" icon={<Home size={20} />} label=\"Dashboard" />
+                <NavItem to="/patient/dashboard" icon={<Home size={20} />} label="Dashboard" />
                 <NavItem to="/patient/records" icon={<FileText size={20} />} label="Medical Records" />
                 <NavItem to="/patient/doctors" icon={<User size={20} />} label="Find Doctors" />
                 <NavItem to="/patient/appointments" icon={<CalendarClock size={20} />} label="Appointments" />
