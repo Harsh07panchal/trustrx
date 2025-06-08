@@ -1,38 +1,24 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { 
-  User as FirebaseUser, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut as firebaseSignOut,
-  onAuthStateChanged
-} from 'firebase/auth';
-import { doc, getDoc, setDoc, enableIndexedDbPersistence } from 'firebase/firestore';
-import { auth, db } from '../config/firebase';
+import { createClient } from '@supabase/supabase-js';
 import { User, UserRole } from '../types';
 
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 interface AuthContextType {
-  currentUser: FirebaseUser | null;
+  currentUser: any | null;
   userProfile: User | null;
   isLoading: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string, role: UserRole, displayName: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, role: UserRole, displayName: string, additionalData?: any) => Promise<void>;
   signOut: () => Promise<void>;
   updateUserRole: (role: UserRole) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
-
-// Enable offline persistence
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === 'failed-precondition') {
-    console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-  } else if (err.code === 'unimplemented') {
-    console.warn('The current browser doesn\'t support offline persistence');
-  }
-});
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -43,32 +29,28 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setCurrentUser(session?.user ?? null);
+      if (session?.user) {
+        fetchUserProfile(session.user.id);
+      }
+      setIsLoading(false);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setCurrentUser(session?.user ?? null);
       
-      if (user) {
-        try {
-          const userDocRef = doc(db, 'users', user.uid);
-          const userDoc = await getDoc(userDocRef);
-          
-          if (userDoc.exists()) {
-            setUserProfile(userDoc.data() as User);
-          } else {
-            console.warn('No user profile found');
-          }
-        } catch (error) {
-          // Handle offline errors more gracefully
-          if (error instanceof Error && error.message.includes('offline')) {
-            console.warn('Currently offline, using cached data if available');
-          } else {
-            console.error('Error fetching user profile:', error);
-          }
-        }
+      if (session?.user) {
+        await fetchUserProfile(session.user.id);
       } else {
         setUserProfile(null);
       }
@@ -76,35 +58,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
     });
 
-    return unsubscribe;
+    return () => subscription.unsubscribe();
   }, []);
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching user profile:', error);
+        return;
+      }
+
+      if (data) {
+        setUserProfile(data as User);
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
 
   const signInWithGoogle = async () => {
     try {
       setIsLoading(true);
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      
-      // Check if this is a new user
-      const userDocRef = doc(db, 'users', result.user.uid);
-      const userDoc = await getDoc(userDocRef);
-      
-      if (!userDoc.exists()) {
-        // Create a new user profile
-        await setDoc(userDocRef, {
-          id: result.user.uid,
-          email: result.user.email,
-          displayName: result.user.displayName || 'User',
-          role: 'patient', // Default role
-          createdAt: new Date().toISOString(),
-          photoURL: result.user.photoURL,
-          subscriptionTier: 'free'
-        });
-      }
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`
+        }
+      });
+
+      if (error) throw error;
     } catch (error) {
-      if (error instanceof Error && error.message.includes('offline')) {
-        console.warn('Currently offline, please check your internet connection');
-      }
       console.error('Error signing in with Google:', error);
       throw error;
     } finally {
@@ -115,11 +104,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signInWithEmail = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      await signInWithEmailAndPassword(auth, email, password);
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
     } catch (error) {
-      if (error instanceof Error && error.message.includes('offline')) {
-        console.warn('Currently offline, please check your internet connection');
-      }
       console.error('Error signing in with email:', error);
       throw error;
     } finally {
@@ -127,25 +118,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signUpWithEmail = async (email: string, password: string, role: UserRole, displayName: string) => {
+  const signUpWithEmail = async (email: string, password: string, role: UserRole, displayName: string, additionalData?: any) => {
     try {
       setIsLoading(true);
-      const result = await createUserWithEmailAndPassword(auth, email, password);
       
-      // Create a new user profile
-      const userDocRef = doc(db, 'users', result.user.uid);
-      await setDoc(userDocRef, {
-        id: result.user.uid,
-        email: result.user.email,
-        displayName,
-        role,
-        createdAt: new Date().toISOString(),
-        subscriptionTier: 'free'
+      // Sign up the user
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            display_name: displayName,
+            role: role
+          }
+        }
       });
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('offline')) {
-        console.warn('Currently offline, please check your internet connection');
+
+      if (error) throw error;
+
+      if (data.user) {
+        // Create user profile
+        const userProfile = {
+          id: data.user.id,
+          email: data.user.email,
+          displayName,
+          role,
+          createdAt: new Date().toISOString(),
+          subscriptionTier: 'free',
+          ...additionalData
+        };
+
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert([userProfile]);
+
+        if (profileError) {
+          console.error('Error creating user profile:', profileError);
+        }
       }
+    } catch (error) {
       console.error('Error signing up with email:', error);
       throw error;
     } finally {
@@ -155,11 +166,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
-      await firebaseSignOut(auth);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
     } catch (error) {
-      if (error instanceof Error && error.message.includes('offline')) {
-        console.warn('Currently offline, please check your internet connection');
-      }
       console.error('Error signing out:', error);
       throw error;
     }
@@ -169,17 +178,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentUser) return;
     
     try {
-      const userDocRef = doc(db, 'users', currentUser.uid);
-      await setDoc(userDocRef, { role }, { merge: true });
-      
+      const { error } = await supabase
+        .from('users')
+        .update({ role })
+        .eq('id', currentUser.id);
+
+      if (error) throw error;
+
       // Update local state
       if (userProfile) {
         setUserProfile({ ...userProfile, role });
       }
     } catch (error) {
-      if (error instanceof Error && error.message.includes('offline')) {
-        console.warn('Currently offline, please check your internet connection');
-      }
       console.error('Error updating user role:', error);
       throw error;
     }
