@@ -138,10 +138,10 @@ const Register = () => {
         const userProfile = {
           id: data.user.id,
           phone: fullPhoneNumber,
-          displayName: formData.name || 'User',
+          display_name: formData.name || 'User',
           role: formData.role,
-          createdAt: new Date().toISOString(),
-          subscriptionTier: 'free'
+          created_at: new Date().toISOString(),
+          subscription_tier: 'free'
         };
 
         const { error: profileError } = await supabase
@@ -198,66 +198,53 @@ const Register = () => {
         return;
       }
 
-      // Additional validation for doctors
-      if (formData.role === 'doctor') {
-        if (!formData.specialty || !formData.licenseNumber || !formData.hospitalAffiliation) {
-          setError('Please fill in all doctor-specific fields');
-          return;
+      // Sign up the user
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            display_name: formData.name,
+            role: formData.role
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // Create user profile
+        const userProfile = {
+          id: data.user.id,
+          email: data.user.email,
+          display_name: formData.name,
+          role: formData.role,
+          created_at: new Date().toISOString(),
+          subscription_tier: 'free'
+        };
+
+        // Add doctor-specific fields if applicable
+        if (formData.role === 'doctor') {
+          Object.assign(userProfile, {
+            specialty: formData.specialty,
+            license_number: formData.licenseNumber,
+            hospital_affiliation: formData.hospitalAffiliation,
+            education: formData.education,
+            years_of_experience: parseInt(formData.yearsOfExperience) || 0,
+            verification_status: 'pending'
+          });
         }
 
-        if (!formData.identityDocument || !formData.medicalLicense || !formData.workCertification) {
-          setError('Please upload all required documents');
-          return;
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert([userProfile]);
+
+        if (profileError) {
+          console.error('Error creating user profile:', profileError);
         }
 
-        // Upload documents
-        const [identityUrl, licenseUrl, certificationUrl] = await Promise.all([
-          uploadFile(formData.identityDocument, `${formData.email}/identity`),
-          uploadFile(formData.medicalLicense, `${formData.email}/license`),
-          uploadFile(formData.workCertification, `${formData.email}/certification`)
-        ]);
-
-        // Create user with additional doctor info
-        const { error } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            data: {
-              display_name: formData.name,
-              role: formData.role,
-              specialty: formData.specialty,
-              license_number: formData.licenseNumber,
-              hospital_affiliation: formData.hospitalAffiliation,
-              education: formData.education,
-              years_of_experience: formData.yearsOfExperience,
-              documents: {
-                identity: identityUrl,
-                license: licenseUrl,
-                certification: certificationUrl
-              },
-              verification_status: 'pending'
-            }
-          }
-        });
-
-        if (error) throw error;
-      } else {
-        // Regular patient registration
-        const { error } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            data: {
-              display_name: formData.name,
-              role: formData.role
-            }
-          }
-        });
-
-        if (error) throw error;
+        navigate('/dashboard');
       }
-
-      navigate('/dashboard');
     } catch (err) {
       console.error('Registration error:', err);
       if (err instanceof AuthApiError) {
@@ -799,92 +786,6 @@ const Register = () => {
                         className="input w-full"
                         required
                       />
-                    </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
-                          Identity Document *
-                        </label>
-                        <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-neutral-300 border-dashed rounded-md">
-                          <div className="space-y-1 text-center">
-                            <Upload className="mx-auto h-12 w-12 text-neutral-400" />
-                            <div className="flex text-sm text-neutral-600">
-                              <label htmlFor="identity-upload" className="relative cursor-pointer rounded-md font-medium text-primary-600 hover:text-primary-500">
-                                <span>Upload a file</span>
-                                <input
-                                  id="identity-upload"
-                                  name="identity-upload"
-                                  type="file"
-                                  className="sr-only"
-                                  onChange={(e) => handleFileChange(e, 'identityDocument')}
-                                  accept=".pdf,.jpg,.jpeg,.png"
-                                />
-                              </label>
-                              <p className="pl-1">or drag and drop</p>
-                            </div>
-                            <p className="text-xs text-neutral-500">
-                              PDF, PNG, JPG up to 10MB
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
-                          Medical License *
-                        </label>
-                        <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-neutral-300 border-dashed rounded-md">
-                          <div className="space-y-1 text-center">
-                            <Upload className="mx-auto h-12 w-12 text-neutral-400" />
-                            <div className="flex text-sm text-neutral-600">
-                              <label htmlFor="license-upload" className="relative cursor-pointer rounded-md font-medium text-primary-600 hover:text-primary-500">
-                                <span>Upload a file</span>
-                                <input
-                                  id="license-upload"
-                                  name="license-upload"
-                                  type="file"
-                                  className="sr-only"
-                                  onChange={(e) => handleFileChange(e, 'medicalLicense')}
-                                  accept=".pdf,.jpg,.jpeg,.png"
-                                />
-                              </label>
-                              <p className="pl-1">or drag and drop</p>
-                            </div>
-                            <p className="text-xs text-neutral-500">
-                              PDF, PNG, JPG up to 10MB
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
-                          Work Certification *
-                        </label>
-                        <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-neutral-300 border-dashed rounded-md">
-                          <div className="space-y-1 text-center">
-                            <Upload className="mx-auto h-12 w-12 text-neutral-400" />
-                            <div className="flex text-sm text-neutral-600">
-                              <label htmlFor="certification-upload" className="relative cursor-pointer rounded-md font-medium text-primary-600 hover:text-primary-500">
-                                <span>Upload a file</span>
-                                <input
-                                  id="certification-upload"
-                                  name="certification-upload"
-                                  type="file"
-                                  className="sr-only"
-                                  onChange={(e) => handleFileChange(e, 'workCertification')}
-                                  accept=".pdf,.jpg,.jpeg,.png"
-                                />
-                              </label>
-                              <p className="pl-1">or drag and drop</p>
-                            </div>
-                            <p className="text-xs text-neutral-500">
-                              PDF, PNG, JPG up to 10MB
-                            </p>
-                          </div>
-                        </div>
-                      </div>
                     </div>
                   </div>
                 )}
