@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Eye, EyeOff } from 'lucide-react';
-import { FirebaseError } from 'firebase/app';
+import { AuthApiError } from '@supabase/supabase-js';
 
 const Login = () => {
   const { signInWithEmail, signInWithGoogle } = useAuth();
@@ -29,17 +29,13 @@ const Login = () => {
       navigate('/dashboard');
     } catch (err) {
       console.error('Login error:', err);
-      if (err instanceof FirebaseError) {
-        switch (err.code) {
-          case 'auth/api-key-not-valid':
-            setError('Authentication service is not properly configured. Please contact support.');
-            break;
-          case 'auth/invalid-email':
-            setError('Please enter a valid email address.');
-            break;
-          case 'auth/user-not-found':
-          case 'auth/wrong-password':
+      if (err instanceof AuthApiError) {
+        switch (err.message) {
+          case 'Invalid login credentials':
             setError('Invalid email or password. Please try again.');
+            break;
+          case 'Email not confirmed':
+            setError('Please check your email and confirm your account before signing in.');
             break;
           default:
             setError('Error during sign in. Please try again.');
@@ -60,16 +56,13 @@ const Login = () => {
       navigate('/dashboard');
     } catch (err) {
       console.error('Google login error:', err);
-      if (err instanceof FirebaseError) {
-        switch (err.code) {
-          case 'auth/popup-blocked':
+      if (err instanceof AuthApiError) {
+        switch (err.message) {
+          case 'Popup blocked':
             setError('Popup blocked by your browser. Please allow popups for this site and try again.');
             break;
-          case 'auth/cancelled-popup-request':
+          case 'User cancelled':
             setError('Authentication cancelled. Please try again.');
-            break;
-          case 'auth/api-key-not-valid':
-            setError('Authentication service is not properly configured. Please contact support.');
             break;
           default:
             setError('Error signing in with Google. Please try again.');

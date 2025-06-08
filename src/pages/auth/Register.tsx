@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Eye, EyeOff, Upload, Check } from 'lucide-react';
-import { FirebaseError } from 'firebase/app';
-import { storage } from '../../config/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { AuthApiError } from '@supabase/supabase-js';
+import { supabase } from '../../config/supabase';
 
 const Register = () => {
   const { signUpWithEmail, signInWithGoogle } = useAuth();
@@ -48,9 +47,17 @@ const Register = () => {
   };
 
   const uploadFile = async (file: File, path: string) => {
-    const storageRef = ref(storage, path);
-    await uploadBytes(storageRef, file);
-    return getDownloadURL(storageRef);
+    const { data, error } = await supabase.storage
+      .from('documents')
+      .upload(path, file);
+    
+    if (error) throw error;
+    
+    const { data: urlData } = supabase.storage
+      .from('documents')
+      .getPublicUrl(data.path);
+    
+    return urlData.publicUrl;
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -90,9 +97,9 @@ const Register = () => {
 
         // Upload documents
         const [identityUrl, licenseUrl, certificationUrl] = await Promise.all([
-          uploadFile(formData.identityDocument, `documents/${formData.email}/identity`),
-          uploadFile(formData.medicalLicense, `documents/${formData.email}/license`),
-          uploadFile(formData.workCertification, `documents/${formData.email}/certification`)
+          uploadFile(formData.identityDocument, `${formData.email}/identity`),
+          uploadFile(formData.medicalLicense, `${formData.email}/license`),
+          uploadFile(formData.workCertification, `${formData.email}/certification`)
         ]);
 
         // Create user with additional doctor info
@@ -117,12 +124,12 @@ const Register = () => {
       navigate('/dashboard');
     } catch (err) {
       console.error('Registration error:', err);
-      if (err instanceof FirebaseError) {
-        switch (err.code) {
-          case 'auth/email-already-in-use':
+      if (err instanceof AuthApiError) {
+        switch (err.message) {
+          case 'User already registered':
             setError('This email is already registered. Please sign in instead.');
             break;
-          case 'auth/invalid-email':
+          case 'Invalid email':
             setError('Please enter a valid email address.');
             break;
           default:
