@@ -1,18 +1,21 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Upload, Check, Phone, Mail, ArrowLeft } from 'lucide-react';
 import { AuthApiError } from '@supabase/supabase-js';
 import { supabase } from '../../config/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
+import HCaptcha from 'react-hcaptcha';
 
 const Register = () => {
   const navigate = useNavigate();
+  const captchaRef = useRef<HCaptcha>(null);
   
   const [signupMethod, setSignupMethod] = useState<'email' | 'phone'>('email');
   const [step, setStep] = useState<'method' | 'details' | 'verification'>('method');
   const [verificationCode, setVerificationCode] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [countryCode, setCountryCode] = useState('+1');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -48,6 +51,8 @@ const Register = () => {
     { code: '+61', country: 'AU', flag: '🇦🇺' },
   ];
 
+  const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY || '10000000-ffff-ffff-ffff-000000000001';
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -79,6 +84,11 @@ const Register = () => {
       return;
     }
 
+    if (!captchaToken) {
+      setError('Please complete the CAPTCHA verification');
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError('');
@@ -87,6 +97,9 @@ const Register = () => {
       
       const { error } = await supabase.auth.signInWithOtp({
         phone: fullPhoneNumber,
+        options: {
+          captchaToken
+        }
       });
 
       if (error) throw error;
@@ -102,11 +115,20 @@ const Register = () => {
           case 'Invalid phone number':
             setError('Please enter a valid phone number.');
             break;
+          case 'captcha verification process failed':
+            setError('CAPTCHA verification failed. Please try again.');
+            break;
           default:
             setError('Error sending verification code. Please try again.');
         }
       } else {
         setError('An unexpected error occurred. Please try again.');
+      }
+      
+      // Reset captcha on error
+      if (captchaRef.current) {
+        captchaRef.current.resetCaptcha();
+        setCaptchaToken(null);
       }
     } finally {
       setIsLoading(false);
@@ -267,12 +289,20 @@ const Register = () => {
   };
 
   const resendVerificationCode = async () => {
+    if (!captchaToken) {
+      setError('Please complete the CAPTCHA verification first');
+      return;
+    }
+
     try {
       setIsLoading(true);
       const fullPhoneNumber = `${countryCode}${phoneNumber.replace(/\D/g, '')}`;
       
       const { error } = await supabase.auth.signInWithOtp({
         phone: fullPhoneNumber,
+        options: {
+          captchaToken
+        }
       });
 
       if (error) throw error;
@@ -280,6 +310,11 @@ const Register = () => {
       setError('');
     } catch (err) {
       setError('Error resending code. Please try again.');
+      // Reset captcha on error
+      if (captchaRef.current) {
+        captchaRef.current.resetCaptcha();
+        setCaptchaToken(null);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -299,6 +334,14 @@ const Register = () => {
   const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhoneNumber(e.target.value);
     setPhoneNumber(formatted);
+  };
+
+  const handleCaptchaVerify = (token: string) => {
+    setCaptchaToken(token);
+  };
+
+  const handleCaptchaExpire = () => {
+    setCaptchaToken(null);
   };
 
   return (
@@ -480,10 +523,19 @@ const Register = () => {
                 </div>
               </div>
 
+              <div className="flex justify-center">
+                <HCaptcha
+                  ref={captchaRef}
+                  sitekey={hcaptchaSiteKey}
+                  onVerify={handleCaptchaVerify}
+                  onExpire={handleCaptchaExpire}
+                />
+              </div>
+
               <motion.button
                 type="button"
                 onClick={handlePhoneSignup}
-                disabled={isLoading || !phoneNumber.trim() || !formData.name.trim()}
+                disabled={isLoading || !phoneNumber.trim() || !formData.name.trim() || !captchaToken}
                 className="btn-primary w-full"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -566,12 +618,17 @@ const Register = () => {
                   <button
                     type="button"
                     onClick={resendVerificationCode}
-                    disabled={isLoading}
-                    className="text-primary-600 hover:text-primary-500 font-medium"
+                    disabled={isLoading || !captchaToken}
+                    className="text-primary-600 hover:text-primary-500 font-medium disabled:opacity-50"
                   >
                     Resend Code
                   </button>
                 </p>
+                {!captchaToken && (
+                  <p className="text-xs text-neutral-500 mt-1">
+                    Complete CAPTCHA verification to resend code
+                  </p>
+                )}
               </div>
             </div>
           </motion.div>
