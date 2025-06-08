@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FileText, UserRound, CalendarClock, ShieldCheck, ArrowRight } from 'lucide-react';
+import { FileText, User, CalendarClock, ShieldCheck, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { motion } from 'framer-motion';
 
@@ -80,7 +80,7 @@ const PatientDashboard = () => {
           link="/patient/records"
         />
         <StatCard 
-          icon={<UserRound className="h-6 w-6 text-primary-500" />}
+          icon={<User className="h-6 w-6 text-primary-500" />}
           title="Doctors"
           value="3"
           link="/patient/doctors"

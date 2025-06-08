@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { 
   FileLock, 
   FileText, 
-  UserRound, 
+  User, 
   CalendarClock, 
   CreditCard, 
   LogOut, 
@@ -62,7 +62,7 @@ const DashboardLayout = () => {
               <>
                 <NavItem to="/patient/dashboard\" icon={<Home size={20} />} label="Dashboard" />
                 <NavItem to="/patient/records" icon={<FileText size={20} />} label="Medical Records" />
-                <NavItem to="/patient/doctors" icon={<UserRound size={20} />} label="Find Doctors" />
+                <NavItem to="/patient/doctors" icon={<User size={20} />} label="Find Doctors" />
                 <NavItem to="/patient/appointments" icon={<CalendarClock size={20} />} label="Appointments" />
                 <NavItem to="/patient/subscription" icon={<CreditCard size={20} />} label="Subscription" />
               </>
@@ -154,7 +154,7 @@ const DashboardLayout = () => {
                       />
                       <NavItem 
                         to="/patient/doctors" 
-                        icon={<UserRound size={20} />} 
+                        icon={<User size={20} />} 
                         label="Find Doctors" 
                         onClick={closeMobileMenu} 
                       />
