@@ -44,14 +44,39 @@ const ProtectedRoute: React.FC<{
   }
 
   if (!currentUser) {
-    return <Navigate to="/login\" state={{ from: location }} replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   if (requiredRole && userProfile?.role !== requiredRole) {
-    return <Navigate to="/dashboard\" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
+};
+
+// Page transition variants
+const pageVariants = {
+  initial: {
+    opacity: 0,
+    x: 100,
+    scale: 0.95
+  },
+  in: {
+    opacity: 1,
+    x: 0,
+    scale: 1
+  },
+  out: {
+    opacity: 0,
+    x: -100,
+    scale: 1.05
+  }
+};
+
+const pageTransition = {
+  type: "tween",
+  ease: "anticipate",
+  duration: 0.5
 };
 
 function App() {
@@ -74,10 +99,12 @@ function App() {
       <AnimatePresence mode="wait">
         <motion.div
           key={location.pathname}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
+          initial="initial"
+          animate="in"
+          exit="out"
+          variants={pageVariants}
+          transition={pageTransition}
+          className="min-h-screen"
         >
           <Routes location={location}>
             {/* Public Routes */}
@@ -95,7 +122,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   {userProfile?.role === 'patient' ? (
-                    <Navigate to="/patient/dashboard\" replace />
+                    <Navigate to="/patient/dashboard" replace />
                   ) : userProfile?.role === 'doctor' ? (
                     <Navigate to="/doctor/dashboard" replace />
                   ) : (
