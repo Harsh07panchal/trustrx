@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Eye, EyeOff, Phone, Mail, ArrowLeft } from 'lucide-react';
 import { AuthApiError } from '@supabase/supabase-js';
 import { supabase } from '../../config/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
+import HCaptcha from '@hcaptcha/react-hcaptcha';
 
 const Login = () => {
   const { signInWithEmail, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const captchaRef = useRef<HCaptcha>(null);
   
   const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
   const [step, setStep] = useState<'method' | 'details' | 'verification'>('method');
@@ -20,6 +22,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   const countryCodes = [
     { code: '+1', country: 'US/CA', flag: '🇺🇸' },
@@ -33,6 +36,14 @@ const Login = () => {
     { code: '+34', country: 'ES', flag: '🇪🇸' },
     { code: '+61', country: 'AU', flag: '🇦🇺' },
   ];
+
+  const handleCaptchaVerify = (token: string) => {
+    setCaptchaToken(token);
+  };
+
+  const handleCaptchaExpire = () => {
+    setCaptchaToken(null);
+  };
   
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,11 +52,26 @@ const Login = () => {
       setError('Please enter both email and password');
       return;
     }
+
+    if (!captchaToken) {
+      setError('Please complete the CAPTCHA verification');
+      return;
+    }
     
     try {
       setIsLoading(true);
       setError('');
-      await signInWithEmail(email, password);
+      
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+        options: {
+          captchaToken
+        }
+      });
+
+      if (error) throw error;
+      
       navigate('/dashboard');
     } catch (err) {
       console.error('Login error:', err);
@@ -56,6 +82,14 @@ const Login = () => {
             break;
           case 'Email not confirmed':
             setError('Please check your email and confirm your account before signing in.');
+            break;
+          case 'captcha verification process failed':
+            setError('CAPTCHA verification failed. Please try again.');
+            // Reset captcha
+            setCaptchaToken(null);
+            if (captchaRef.current) {
+              captchaRef.current.resetCaptcha();
+            }
             break;
           default:
             setError('Error during sign in. Please try again.');
@@ -74,6 +108,11 @@ const Login = () => {
       return;
     }
 
+    if (!captchaToken) {
+      setError('Please complete the CAPTCHA verification');
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError('');
@@ -82,6 +121,9 @@ const Login = () => {
       
       const { error } = await supabase.auth.signInWithOtp({
         phone: fullPhoneNumber,
+        options: {
+          captchaToken
+        }
       });
 
       if (error) throw error;
@@ -96,6 +138,14 @@ const Login = () => {
             break;
           case 'Invalid phone number':
             setError('Please enter a valid phone number.');
+            break;
+          case 'captcha verification process failed':
+            setError('CAPTCHA verification failed. Please try again.');
+            // Reset captcha
+            setCaptchaToken(null);
+            if (captchaRef.current) {
+              captchaRef.current.resetCaptcha();
+            }
             break;
           default:
             setError('Error sending verification code. Please try again.');
@@ -383,11 +433,21 @@ const Login = () => {
                   </button>
                 </div>
               </div>
+
+              {/* hCaptcha */}
+              <div className="mb-6 flex justify-center">
+                <HCaptcha
+                  ref={captchaRef}
+                  sitekey={import.meta.env.VITE_HCAPTCHA_SITE_KEY}
+                  onVerify={handleCaptchaVerify}
+                  onExpire={handleCaptchaExpire}
+                />
+              </div>
               
               <motion.button
                 type="submit"
                 className="btn-primary w-full mb-4"
-                disabled={isLoading}
+                disabled={isLoading || !captchaToken}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
@@ -457,10 +517,20 @@ const Login = () => {
                 </p>
               </div>
 
+              {/* hCaptcha */}
+              <div className="flex justify-center">
+                <HCaptcha
+                  ref={captchaRef}
+                  sitekey={import.meta.env.VITE_HCAPTCHA_SITE_KEY}
+                  onVerify={handleCaptchaVerify}
+                  onExpire={handleCaptchaExpire}
+                />
+              </div>
+
               <motion.button
                 type="button"
                 onClick={handlePhoneLogin}
-                disabled={isLoading || !phoneNumber.trim()}
+                disabled={isLoading || !phoneNumber.trim() || !captchaToken}
                 className="btn-primary w-full"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
