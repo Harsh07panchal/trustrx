@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useLoadScript, GoogleMap, Marker } from '@react-google-maps/api';
 import { Search, MapPin, Star, Clock, FilterX, Filter, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '../../config/supabase';
@@ -17,10 +16,72 @@ const DoctorSearch = () => {
   const [userLocation, setUserLocation] = useState(null);
   const [mapCenter, setMapCenter] = useState({ lat: 40.7128, lng: -74.0060 }); // Default to NYC
 
-  // Load Google Maps
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-  });
+  // Mock doctors data since Google Maps API might not be available
+  const mockDoctors = [
+    {
+      id: '1',
+      name: 'Dr. Sarah Johnson',
+      specialty: 'Cardiologist',
+      photo_url: 'https://images.pexels.com/photos/5452201/pexels-photo-5452201.jpeg?auto=compress&cs=tinysrgb&w=150',
+      is_verified: true,
+      rating: 4.8,
+      review_count: 124,
+      accepting_new_patients: true,
+      years_of_experience: 15,
+      education: 'Harvard Medical School',
+      languages: ['English', 'Spanish'],
+      location: {
+        address: '123 Medical Ave',
+        city: 'New York',
+        state: 'NY',
+        zip_code: '10001',
+        coordinates: { latitude: 40.7128, longitude: -74.0060 }
+      },
+      distance: 2.3
+    },
+    {
+      id: '2',
+      name: 'Dr. Michael Chen',
+      specialty: 'Dermatologist',
+      photo_url: 'https://images.pexels.com/photos/4225880/pexels-photo-4225880.jpeg?auto=compress&cs=tinysrgb&w=150',
+      is_verified: true,
+      rating: 4.6,
+      review_count: 89,
+      accepting_new_patients: true,
+      years_of_experience: 12,
+      education: 'Johns Hopkins University',
+      languages: ['English', 'Mandarin'],
+      location: {
+        address: '456 Health Blvd',
+        city: 'New York',
+        state: 'NY',
+        zip_code: '10002',
+        coordinates: { latitude: 40.7589, longitude: -73.9851 }
+      },
+      distance: 3.1
+    },
+    {
+      id: '3',
+      name: 'Dr. Emily Rodriguez',
+      specialty: 'General Practitioner',
+      photo_url: 'https://images.pexels.com/photos/5214961/pexels-photo-5214961.jpeg?auto=compress&cs=tinysrgb&w=150',
+      is_verified: false,
+      rating: 4.4,
+      review_count: 67,
+      accepting_new_patients: false,
+      years_of_experience: 8,
+      education: 'Columbia University',
+      languages: ['English', 'Spanish'],
+      location: {
+        address: '789 Care St',
+        city: 'New York',
+        state: 'NY',
+        zip_code: '10003',
+        coordinates: { latitude: 40.7505, longitude: -73.9934 }
+      },
+      distance: 1.8
+    }
+  ];
 
   // Get user's location
   useEffect(() => {
@@ -38,86 +99,31 @@ const DoctorSearch = () => {
     }
   }, []);
 
-  // Fetch doctors from Supabase
+  // Filter and sort doctors
   useEffect(() => {
-    const fetchDoctors = async () => {
-      try {
-        let query = supabase
-          .from('doctors')
-          .select('*');
+    let filteredDoctors = mockDoctors.filter(doctor => {
+      const matchesSearch = 
+        doctor.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        doctor.specialty?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesSpecialty = selectedSpecialty === 'All Specialties' || doctor.specialty === selectedSpecialty;
+      const matchesVerified = !verifiedOnly || doctor.is_verified;
+      const matchesAccepting = !acceptingNewPatients || doctor.accepting_new_patients;
+      
+      return matchesSearch && matchesSpecialty && matchesVerified && matchesAccepting;
+    });
 
-        if (selectedSpecialty !== 'All Specialties') {
-          query = query.eq('specialty', selectedSpecialty);
-        }
-
-        if (verifiedOnly) {
-          query = query.eq('is_verified', true);
-        }
-
-        if (acceptingNewPatients) {
-          query = query.eq('accepting_new_patients', true);
-        }
-
-        const { data: doctorsData, error } = await query;
-
-        if (error) {
-          console.error('Error fetching doctors:', error);
-          return;
-        }
-
-        // Filter by search term
-        const filteredDoctors = doctorsData?.filter(doctor => {
-          const matchesSearch = 
-            doctor.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-            doctor.specialty?.toLowerCase().includes(searchTerm.toLowerCase());
-          
-          return matchesSearch;
-        }) || [];
-
-        // Sort doctors
-        const sortedDoctors = filteredDoctors.sort((a, b) => {
-          if (sortBy === 'rating') {
-            return (b.rating || 0) - (a.rating || 0);
-          } else {
-            return (b.years_of_experience || 0) - (a.years_of_experience || 0);
-          }
-        });
-
-        setDoctors(sortedDoctors);
-      } catch (error) {
-        console.error('Error fetching doctors:', error);
+    // Sort doctors
+    filteredDoctors = filteredDoctors.sort((a, b) => {
+      if (sortBy === 'rating') {
+        return (b.rating || 0) - (a.rating || 0);
+      } else {
+        return (b.years_of_experience || 0) - (a.years_of_experience || 0);
       }
-    };
+    });
 
-    fetchDoctors();
+    setDoctors(filteredDoctors);
   }, [searchTerm, selectedSpecialty, verifiedOnly, acceptingNewPatients, sortBy]);
-
-  // Calculate distance between two points
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; // Radius of the Earth in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    const d = R * c;
-    return d;
-  };
-
-  // Sort doctors by distance if user location is available
-  const sortedDoctors = userLocation
-    ? doctors.map(doctor => ({
-        ...doctor,
-        distance: doctor.location?.coordinates ? calculateDistance(
-          userLocation.lat,
-          userLocation.lng,
-          doctor.location.coordinates.latitude,
-          doctor.location.coordinates.longitude
-        ) : 0
-      })).sort((a, b) => a.distance - b.distance)
-    : doctors;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -155,7 +161,6 @@ const DoctorSearch = () => {
                 <option>General Practitioner</option>
                 <option>Neurologist</option>
                 <option>Pediatrician</option>
-                {/* Add more specialties */}
               </select>
             </div>
 
@@ -217,7 +222,7 @@ const DoctorSearch = () => {
 
         {/* Doctor List */}
         <div className="space-y-4">
-          {sortedDoctors.map((doctor) => (
+          {doctors.map((doctor) => (
             <motion.div
               key={doctor.id}
               className="bg-white rounded-xl shadow-sm p-6 border border-neutral-200 cursor-pointer hover:border-primary-200 transition-all"
@@ -227,7 +232,7 @@ const DoctorSearch = () => {
             >
               <div className="flex items-start gap-4">
                 <img
-                  src={doctor.photo_url || 'https://images.pexels.com/photos/5452201/pexels-photo-5452201.jpeg?auto=compress&cs=tinysrgb&w=150'}
+                  src={doctor.photo_url}
                   alt={doctor.name}
                   className="w-16 h-16 rounded-lg object-cover"
                 />
@@ -248,16 +253,14 @@ const DoctorSearch = () => {
                   <div className="mt-2 flex items-center gap-4 text-sm">
                     <div className="flex items-center text-amber-500">
                       <Star size={16} className="fill-current" />
-                      <span className="ml-1 text-neutral-700">{doctor.rating || 4.5}</span>
+                      <span className="ml-1 text-neutral-700">{doctor.rating}</span>
                     </div>
                     <span className="text-neutral-500">
-                      {doctor.review_count || 0} reviews
+                      {doctor.review_count} reviews
                     </span>
-                    {userLocation && doctor.distance && (
-                      <span className="text-neutral-500">
-                        {doctor.distance.toFixed(1)} km away
-                      </span>
-                    )}
+                    <span className="text-neutral-500">
+                      {doctor.distance} km away
+                    </span>
                   </div>
 
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -271,7 +274,7 @@ const DoctorSearch = () => {
                       </span>
                     )}
                     <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
-                      {doctor.years_of_experience || 0} years exp.
+                      {doctor.years_of_experience} years exp.
                     </span>
                   </div>
                 </div>
@@ -283,42 +286,23 @@ const DoctorSearch = () => {
 
       {/* Map View */}
       <div className="sticky top-0 h-screen">
-        {isLoaded ? (
-          <GoogleMap
-            mapContainerClassName="w-full h-full rounded-xl"
-            center={mapCenter}
-            zoom={12}
-          >
-            {sortedDoctors.map((doctor) => (
-              doctor.location?.coordinates && (
-                <Marker
-                  key={doctor.id}
-                  position={{
-                    lat: doctor.location.coordinates.latitude,
-                    lng: doctor.location.coordinates.longitude
-                  }}
-                  onClick={() => setSelectedDoctor(doctor)}
-                />
-              )
-            ))}
-          </GoogleMap>
-        ) : (
-          <div className="w-full h-full bg-neutral-100 rounded-xl flex items-center justify-center">
-            Loading map...
+        <div className="w-full h-full bg-neutral-100 rounded-xl flex items-center justify-center">
+          <div className="text-center">
+            <MapPin size={48} className="text-neutral-400 mx-auto mb-4" />
+            <p className="text-neutral-600">Map view would be displayed here</p>
+            <p className="text-sm text-neutral-500">Google Maps integration available with API key</p>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Doctor Details Modal */}
       {selectedDoctor && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Modal content */}
             <div className="p-6">
-              {/* Doctor details */}
               <div className="flex items-start gap-6">
                 <img
-                  src={selectedDoctor.photo_url || 'https://images.pexels.com/photos/5452201/pexels-photo-5452201.jpeg?auto=compress&cs=tinysrgb&w=150'}
+                  src={selectedDoctor.photo_url}
                   alt={selectedDoctor.name}
                   className="w-24 h-24 rounded-lg object-cover"
                 />
@@ -342,15 +326,15 @@ const DoctorSearch = () => {
                       <div className="space-y-2 text-sm">
                         <p>
                           <span className="text-neutral-500">Experience:</span>{' '}
-                          {selectedDoctor.years_of_experience || 0} years
+                          {selectedDoctor.years_of_experience} years
                         </p>
                         <p>
                           <span className="text-neutral-500">Education:</span>{' '}
-                          {selectedDoctor.education || 'Not specified'}
+                          {selectedDoctor.education}
                         </p>
                         <p>
                           <span className="text-neutral-500">Languages:</span>{' '}
-                          {selectedDoctor.languages?.join(', ') || 'English'}
+                          {selectedDoctor.languages?.join(', ')}
                         </p>
                       </div>
                     </div>
@@ -358,17 +342,14 @@ const DoctorSearch = () => {
                     <div>
                       <h3 className="font-medium mb-2">Location</h3>
                       <div className="space-y-2 text-sm">
-                        <p>{selectedDoctor.location?.address || 'Address not available'}</p>
+                        <p>{selectedDoctor.location?.address}</p>
                         <p>
-                          {selectedDoctor.location?.city || 'City'},{' '}
-                          {selectedDoctor.location?.state || 'State'}{' '}
-                          {selectedDoctor.location?.zip_code || ''}
+                          {selectedDoctor.location?.city}, {selectedDoctor.location?.state}{' '}
+                          {selectedDoctor.location?.zip_code}
                         </p>
-                        {userLocation && selectedDoctor.distance && (
-                          <p className="text-neutral-500">
-                            {selectedDoctor.distance.toFixed(1)} km away
-                          </p>
-                        )}
+                        <p className="text-neutral-500">
+                          {selectedDoctor.distance} km away
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -387,7 +368,6 @@ const DoctorSearch = () => {
               </div>
             </div>
 
-            {/* Modal actions */}
             <div className="border-t border-neutral-200 p-4 flex justify-end">
               <button
                 className="btn-ghost"

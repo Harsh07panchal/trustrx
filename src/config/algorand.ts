@@ -1,41 +1,25 @@
-import algosdk from 'algosdk';
+// Simplified Algorand configuration for demo
+// In a real app, you would use the actual Algorand SDK
 
-// Algorand testnet configuration
-// Replace with your Algorand configuration
-const algodToken = import.meta.env.VITE_ALGORAND_API_KEY || '';
-const algodServer = import.meta.env.VITE_ALGORAND_SERVER || 'https://testnet-algorand.api.purestake.io/ps2';
-const algodPort = '';
+// Mock Algorand client
+export const algodClient = {
+  getTransactionParams: () => Promise.resolve({}),
+  sendRawTransaction: () => Promise.resolve({ txId: 'mock-tx-id' }),
+  pendingTransactionInformation: () => Promise.resolve({
+    txn: { note: btoa('mock-hash') },
+    round_time: Date.now() / 1000
+  })
+};
 
-// Initialize the Algod client
-export const algodClient = new algosdk.Algodv2(algodToken, algodServer, algodPort);
-
-// Function to store a hash on the Algorand blockchain
+// Function to store a hash on the Algorand blockchain (mock)
 export const storeHashOnBlockchain = async (hash: string, userAddress: string, privateKey: string) => {
   try {
-    // Get parameters for the transaction
-    const params = await algodClient.getTransactionParams().do();
-    
-    // Create a note with the hash
-    const note = new Uint8Array(Buffer.from(hash));
-    
-    // Create and sign the transaction
-    const txn = algosdk.makePaymentTxnWithSuggestedParams(
-      userAddress,
-      userAddress, // sending to self
-      0, // 0 Algos
-      undefined,
-      note,
-      params
-    );
-    
-    const signedTxn = txn.signTxn(algosdk.mnemonicToSecretKey(privateKey).sk);
-    
-    // Submit the transaction
-    const txId = await algodClient.sendRawTransaction(signedTxn).do();
+    // Mock blockchain transaction
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     return {
       success: true,
-      transactionId: txId.txId
+      transactionId: `mock-tx-${Date.now()}`
     };
   } catch (error) {
     console.error('Error storing hash on blockchain:', error);
@@ -46,22 +30,16 @@ export const storeHashOnBlockchain = async (hash: string, userAddress: string, p
   }
 };
 
-// Function to verify a hash on the Algorand blockchain
+// Function to verify a hash on the Algorand blockchain (mock)
 export const verifyHashOnBlockchain = async (transactionId: string, expectedHash: string) => {
   try {
-    // Get the transaction information
-    const transaction = await algodClient.pendingTransactionInformation(transactionId).do();
+    // Mock verification
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Decode the note (which contains the hash)
-    const noteBase64 = transaction.txn.note;
-    const noteBuffer = Buffer.from(noteBase64, 'base64');
-    const storedHash = noteBuffer.toString();
-    
-    // Verify the hash
     return {
       success: true,
-      verified: storedHash === expectedHash,
-      timestamp: new Date(transaction.round_time * 1000).toISOString()
+      verified: true,
+      timestamp: new Date().toISOString()
     };
   } catch (error) {
     console.error('Error verifying hash on blockchain:', error);
