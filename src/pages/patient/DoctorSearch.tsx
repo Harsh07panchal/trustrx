@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLoadScript, GoogleMap, Marker } from '@react-google-maps/api';
 import { Search, MapPin, Star, Clock, FilterX, Filter, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { db } from '../../config/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { supabase } from '../../config/supabase';
 
 const DoctorSearch = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,46 +38,48 @@ const DoctorSearch = () => {
     }
   }, []);
 
-  // Fetch doctors from Firestore
+  // Fetch doctors from Supabase
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
-        const doctorsRef = collection(db, 'doctors');
-        let q = query(doctorsRef);
+        let query = supabase
+          .from('doctors')
+          .select('*');
 
         if (selectedSpecialty !== 'All Specialties') {
-          q = query(q, where('specialty', '==', selectedSpecialty));
+          query = query.eq('specialty', selectedSpecialty);
         }
 
         if (verifiedOnly) {
-          q = query(q, where('isVerified', '==', true));
+          query = query.eq('is_verified', true);
         }
 
         if (acceptingNewPatients) {
-          q = query(q, where('acceptingNewPatients', '==', true));
+          query = query.eq('accepting_new_patients', true);
         }
 
-        const querySnapshot = await getDocs(q);
-        const doctorsData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        const { data: doctorsData, error } = await query;
+
+        if (error) {
+          console.error('Error fetching doctors:', error);
+          return;
+        }
 
         // Filter by search term
-        const filteredDoctors = doctorsData.filter(doctor => {
+        const filteredDoctors = doctorsData?.filter(doctor => {
           const matchesSearch = 
-            doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-            doctor.specialty.toLowerCase().includes(searchTerm.toLowerCase());
+            doctor.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            doctor.specialty?.toLowerCase().includes(searchTerm.toLowerCase());
           
           return matchesSearch;
-        });
+        }) || [];
 
         // Sort doctors
         const sortedDoctors = filteredDoctors.sort((a, b) => {
           if (sortBy === 'rating') {
-            return b.rating - a.rating;
+            return (b.rating || 0) - (a.rating || 0);
           } else {
-            return b.yearsOfExperience - a.yearsOfExperience;
+            return (b.years_of_experience || 0) - (a.years_of_experience || 0);
           }
         });
 
@@ -109,12 +110,12 @@ const DoctorSearch = () => {
   const sortedDoctors = userLocation
     ? doctors.map(doctor => ({
         ...doctor,
-        distance: calculateDistance(
+        distance: doctor.location?.coordinates ? calculateDistance(
           userLocation.lat,
           userLocation.lng,
           doctor.location.coordinates.latitude,
           doctor.location.coordinates.longitude
-        )
+        ) : 0
       })).sort((a, b) => a.distance - b.distance)
     : doctors;
 
@@ -226,7 +227,7 @@ const DoctorSearch = () => {
             >
               <div className="flex items-start gap-4">
                 <img
-                  src={doctor.photoURL}
+                  src={doctor.photo_url || 'https://images.pexels.com/photos/5452201/pexels-photo-5452201.jpeg?auto=compress&cs=tinysrgb&w=150'}
                   alt={doctor.name}
                   className="w-16 h-16 rounded-lg object-cover"
                 />
@@ -236,7 +237,7 @@ const DoctorSearch = () => {
                       <h3 className="font-medium text-lg">{doctor.name}</h3>
                       <p className="text-neutral-600">{doctor.specialty}</p>
                     </div>
-                    {doctor.isVerified && (
+                    {doctor.is_verified && (
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-success-100 text-success-800">
                         <Check size={12} className="mr-1" />
                         Verified
@@ -247,12 +248,12 @@ const DoctorSearch = () => {
                   <div className="mt-2 flex items-center gap-4 text-sm">
                     <div className="flex items-center text-amber-500">
                       <Star size={16} className="fill-current" />
-                      <span className="ml-1 text-neutral-700">{doctor.rating}</span>
+                      <span className="ml-1 text-neutral-700">{doctor.rating || 4.5}</span>
                     </div>
                     <span className="text-neutral-500">
-                      {doctor.reviewCount} reviews
+                      {doctor.review_count || 0} reviews
                     </span>
-                    {userLocation && (
+                    {userLocation && doctor.distance && (
                       <span className="text-neutral-500">
                         {doctor.distance.toFixed(1)} km away
                       </span>
@@ -260,7 +261,7 @@ const DoctorSearch = () => {
                   </div>
 
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {doctor.acceptingNewPatients ? (
+                    {doctor.accepting_new_patients ? (
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-success-100 text-success-800">
                         Accepting Patients
                       </span>
@@ -270,7 +271,7 @@ const DoctorSearch = () => {
                       </span>
                     )}
                     <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
-                      {doctor.yearsOfExperience} years exp.
+                      {doctor.years_of_experience || 0} years exp.
                     </span>
                   </div>
                 </div>
@@ -289,14 +290,16 @@ const DoctorSearch = () => {
             zoom={12}
           >
             {sortedDoctors.map((doctor) => (
-              <Marker
-                key={doctor.id}
-                position={{
-                  lat: doctor.location.coordinates.latitude,
-                  lng: doctor.location.coordinates.longitude
-                }}
-                onClick={() => setSelectedDoctor(doctor)}
-              />
+              doctor.location?.coordinates && (
+                <Marker
+                  key={doctor.id}
+                  position={{
+                    lat: doctor.location.coordinates.latitude,
+                    lng: doctor.location.coordinates.longitude
+                  }}
+                  onClick={() => setSelectedDoctor(doctor)}
+                />
+              )
             ))}
           </GoogleMap>
         ) : (
@@ -315,7 +318,7 @@ const DoctorSearch = () => {
               {/* Doctor details */}
               <div className="flex items-start gap-6">
                 <img
-                  src={selectedDoctor.photoURL}
+                  src={selectedDoctor.photo_url || 'https://images.pexels.com/photos/5452201/pexels-photo-5452201.jpeg?auto=compress&cs=tinysrgb&w=150'}
                   alt={selectedDoctor.name}
                   className="w-24 h-24 rounded-lg object-cover"
                 />
@@ -325,7 +328,7 @@ const DoctorSearch = () => {
                       <h2 className="text-2xl font-bold">{selectedDoctor.name}</h2>
                       <p className="text-neutral-600">{selectedDoctor.specialty}</p>
                     </div>
-                    {selectedDoctor.isVerified && (
+                    {selectedDoctor.is_verified && (
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-success-100 text-success-800">
                         <Check size={12} className="mr-1" />
                         Verified
@@ -339,15 +342,15 @@ const DoctorSearch = () => {
                       <div className="space-y-2 text-sm">
                         <p>
                           <span className="text-neutral-500">Experience:</span>{' '}
-                          {selectedDoctor.yearsOfExperience} years
+                          {selectedDoctor.years_of_experience || 0} years
                         </p>
                         <p>
                           <span className="text-neutral-500">Education:</span>{' '}
-                          {selectedDoctor.education}
+                          {selectedDoctor.education || 'Not specified'}
                         </p>
                         <p>
                           <span className="text-neutral-500">Languages:</span>{' '}
-                          {selectedDoctor.languages.join(', ')}
+                          {selectedDoctor.languages?.join(', ') || 'English'}
                         </p>
                       </div>
                     </div>
@@ -355,13 +358,13 @@ const DoctorSearch = () => {
                     <div>
                       <h3 className="font-medium mb-2">Location</h3>
                       <div className="space-y-2 text-sm">
-                        <p>{selectedDoctor.location.address}</p>
+                        <p>{selectedDoctor.location?.address || 'Address not available'}</p>
                         <p>
-                          {selectedDoctor.location.city},{' '}
-                          {selectedDoctor.location.state}{' '}
-                          {selectedDoctor.location.zipCode}
+                          {selectedDoctor.location?.city || 'City'},{' '}
+                          {selectedDoctor.location?.state || 'State'}{' '}
+                          {selectedDoctor.location?.zip_code || ''}
                         </p>
-                        {userLocation && (
+                        {userLocation && selectedDoctor.distance && (
                           <p className="text-neutral-500">
                             {selectedDoctor.distance.toFixed(1)} km away
                           </p>
@@ -373,9 +376,9 @@ const DoctorSearch = () => {
                   <div className="mt-6">
                     <button
                       className="btn-primary w-full"
-                      disabled={!selectedDoctor.acceptingNewPatients}
+                      disabled={!selectedDoctor.accepting_new_patients}
                     >
-                      {selectedDoctor.acceptingNewPatients
+                      {selectedDoctor.accepting_new_patients
                         ? 'Book Appointment'
                         : 'Not Accepting Patients'}
                     </button>
