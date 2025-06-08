@@ -19,7 +19,7 @@
     "react-audio-voice-recorder": "^2.2.0",
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.2.3",
-    "react-hcaptcha": "^1.8.1",
+    "react-hcaptcha": "^1.4.4",
     "react-router-dom": "^6.8.1"
   },
   "devDependencies": {
