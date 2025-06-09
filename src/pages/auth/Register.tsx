@@ -51,7 +51,7 @@ const Register = () => {
     { code: '+61', country: 'AU', flag: '🇦🇺' },
   ];
 
-  const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY || '10000000-ffff-ffff-ffff-000000000001';
+  const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY || 'c0d297b2-8efe-40c8-910e-37b0b6124034';
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
