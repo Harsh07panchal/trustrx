@@ -319,7 +319,7 @@ const MedicalRecords = () => {
                   {/* Verification badge */}
                   <div className="flex-shrink-0 self-center">
                     {record.blockchainVerification?.verified && (
-                      <div className="verified-badge flex items-center" title={`Blockchain verified: ${record.blockchainVerification.transactionId}`}>
+                      <div className="verified-badge flex items-center\" title={`Blockchain verified: ${record.blockchainVerification.transactionId}`}>
                         <Shield size={14} className="mr-1" />
                         Verified
                       </div>
