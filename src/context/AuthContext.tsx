@@ -5,6 +5,10 @@ import { User, UserRole } from '../types';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables. Please check your .env file.');
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 interface AuthContextType {
@@ -141,10 +145,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const userProfile = {
           id: data.user.id,
           email: data.user.email,
-          displayName,
+          display_name: displayName,
           role,
-          createdAt: new Date().toISOString(),
-          subscriptionTier: 'free',
+          created_at: new Date().toISOString(),
+          subscription_tier: 'free',
           ...additionalData
         };
 

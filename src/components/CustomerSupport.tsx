@@ -50,10 +50,10 @@ const CustomerSupport = () => {
     scrollToBottom();
 
     try {
-      const response = await fetch('https://yfjaezthvfbgqswaffwo.supabase.co/functions/v1/chat', {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlmamFlenRodmZiZ3Fzd2FmZndvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkxODE1NjYsImV4cCI6MjA2NDc1NzU2Nn0.M5I495dV6hjleGgPEESQT-OTDW7PyDWgegfs6N0UY54`,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ message: text, type }),
