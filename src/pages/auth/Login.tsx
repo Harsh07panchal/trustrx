@@ -8,7 +8,7 @@ import HCaptcha from '@hcaptcha/react-hcaptcha';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { signInWithEmail } = useAuth();
+  const { signInWithEmail, signUpWithEmail } = useAuth();
   const captchaRef = useRef<HCaptcha>(null);
   
   const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
@@ -37,7 +37,7 @@ const Login = () => {
   ];
 
   // Use the demo site key for testing - this should always work
-  const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY || '10000000-ffff-ffff-ffff-000000000001';
+  const hcaptchaSiteKey = '10000000-ffff-ffff-ffff-000000000001';
   
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,12 +88,55 @@ const Login = () => {
       setIsLoading(true);
       setError('');
       
-      // Demo credentials
-      await signInWithEmail('demo@trustrx.com', 'demo123');
-      navigate('/dashboard');
+      const demoEmail = 'demo@trustrx.com';
+      const demoPassword = 'demo123456';
+      
+      console.log('Attempting demo login...');
+      
+      // First try to sign in
+      try {
+        await signInWithEmail(demoEmail, demoPassword);
+        console.log('Demo login successful');
+        navigate('/dashboard');
+        return;
+      } catch (signInError) {
+        console.log('Demo user not found, creating demo account...');
+        
+        // If sign in fails, create the demo account
+        try {
+          await signUpWithEmail(demoEmail, demoPassword, 'patient', 'Demo User', {
+            // Add some demo data
+            dateOfBirth: '1990-01-01',
+            gender: 'other',
+            phoneNumber: '+1-555-0123'
+          });
+          
+          console.log('Demo account created, now signing in...');
+          
+          // Wait a moment for the account to be fully created
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Now try to sign in again
+          await signInWithEmail(demoEmail, demoPassword);
+          console.log('Demo login successful after creation');
+          navigate('/dashboard');
+          
+        } catch (signUpError) {
+          console.error('Demo account creation failed:', signUpError);
+          
+          // If signup also fails, try one more time to sign in
+          try {
+            await signInWithEmail(demoEmail, demoPassword);
+            navigate('/dashboard');
+          } catch (finalError) {
+            throw new Error('Demo login failed. Please try manual registration.');
+          }
+        }
+      }
+      
     } catch (err) {
       console.error('Demo login error:', err);
-      setError('Demo login failed. Please try manual registration.');
+      setError('Demo login failed. Please try creating a new account manually.');
     } finally {
       setIsLoading(false);
     }
@@ -179,20 +222,32 @@ const Login = () => {
             )}
 
             {/* Demo Login Section */}
-            <div className="mb-6 p-4 bg-primary-50 border border-primary-200 rounded-lg">
-              <h3 className="font-semibold text-primary-700 mb-2">Quick Demo Access</h3>
-              <p className="text-sm text-primary-600 mb-3">
-                Try TrustRx instantly with our demo account
-              </p>
-              <motion.button
-                onClick={handleDemoLogin}
-                className="btn-primary w-full"
-                disabled={isLoading}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {isLoading ? 'Signing in...' : 'Demo Login (Instant Access)'}
-              </motion.button>
+            <div className="mb-6 p-6 bg-gradient-to-r from-primary-50 to-primary-100 border-2 border-primary-200 rounded-lg">
+              <div className="text-center">
+                <h3 className="font-bold text-primary-700 mb-2 text-lg">🚀 Try TrustRx Instantly</h3>
+                <p className="text-primary-600 mb-4">
+                  Experience our platform immediately with a demo account
+                </p>
+                <motion.button
+                  onClick={handleDemoLogin}
+                  className="btn-primary w-full text-lg py-3 shadow-lg"
+                  disabled={isLoading}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2 inline-block"></div>
+                      Setting up demo...
+                    </>
+                  ) : (
+                    '✨ Demo Login (Instant Access)'
+                  )}
+                </motion.button>
+                <p className="text-xs text-primary-500 mt-2">
+                  No registration required • Full platform access • Safe to explore
+                </p>
+              </div>
             </div>
 
             <div className="relative my-6">
@@ -352,9 +407,9 @@ const Login = () => {
                 <label className="block text-sm font-medium text-neutral-700 mb-3">
                   Security Verification
                 </label>
-                <div className="border border-neutral-200 rounded-lg p-4 bg-neutral-50">
+                <div className="border-2 border-neutral-200 rounded-lg p-6 bg-neutral-50">
                   <div className="flex justify-center">
-                    <div className="w-full max-w-sm">
+                    <div style={{ width: '304px', height: '78px' }}>
                       <HCaptcha
                         ref={captchaRef}
                         sitekey={hcaptchaSiteKey}
@@ -372,7 +427,12 @@ const Login = () => {
                       <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
-                      CAPTCHA verified successfully
+                      ✅ CAPTCHA verified successfully
+                    </div>
+                  )}
+                  {!captchaToken && (
+                    <div className="mt-3 text-center text-xs text-neutral-500">
+                      Complete the CAPTCHA above to verify you're human
                     </div>
                   )}
                 </div>

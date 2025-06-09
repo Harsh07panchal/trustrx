@@ -53,7 +53,7 @@ const Register = () => {
   ];
 
   // Use the demo site key for testing
-  const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY || '10000000-ffff-ffff-ffff-000000000001';
+  const hcaptchaSiteKey = '10000000-ffff-ffff-ffff-000000000001';
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -501,9 +501,9 @@ const Register = () => {
                 <label className="block text-sm font-medium text-neutral-700 mb-3">
                   Security Verification
                 </label>
-                <div className="border border-neutral-200 rounded-lg p-4 bg-neutral-50">
+                <div className="border-2 border-neutral-200 rounded-lg p-6 bg-neutral-50">
                   <div className="flex justify-center">
-                    <div className="w-full max-w-sm">
+                    <div style={{ width: '304px', height: '78px' }}>
                       <HCaptcha
                         ref={captchaRef}
                         sitekey={hcaptchaSiteKey}
@@ -521,7 +521,12 @@ const Register = () => {
                       <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
-                      CAPTCHA verified successfully
+                      ✅ CAPTCHA verified successfully
+                    </div>
+                  )}
+                  {!captchaToken && (
+                    <div className="mt-3 text-center text-xs text-neutral-500">
+                      Complete the CAPTCHA above to verify you're human
                     </div>
                   )}
                 </div>
