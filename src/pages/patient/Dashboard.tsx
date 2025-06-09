@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FileText, User, CalendarClock, ShieldCheck, ArrowRight } from 'lucide-react';
+import { FileText, User, CalendarClock, ShieldCheck, ArrowRight, Wallet, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { motion } from 'framer-motion';
 
@@ -91,6 +91,34 @@ const PatientDashboard = () => {
           value={upcomingAppointments.length.toString()}
           link="/patient/appointments"
         />
+      </motion.div>
+
+      {/* Blockchain Wallet Setup */}
+      <motion.div variants={itemVariants} className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl shadow-sm p-6 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold mb-2 flex items-center">
+              <Wallet className="mr-2" size={20} />
+              Algorand Wallet Setup
+            </h3>
+            <p className="text-primary-100 mb-4">
+              Set up your Algorand wallet to enable blockchain verification for your medical records.
+            </p>
+            <div className="flex items-center text-sm text-primary-100">
+              <ShieldCheck size={16} className="mr-2" />
+              <span>Secure • Decentralized • Tamper-proof</span>
+            </div>
+          </div>
+          <div className="text-right">
+            <button 
+              onClick={() => window.open('/wallet-setup', '_blank')}
+              className="bg-white text-primary-600 px-6 py-3 rounded-lg font-medium hover:bg-primary-50 transition-colors flex items-center"
+            >
+              Setup Wallet
+              <ExternalLink size={16} className="ml-2" />
+            </button>
+          </div>
+        </div>
       </motion.div>
       
       {/* Recent records */}

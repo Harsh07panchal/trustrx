@@ -13,7 +13,8 @@ import {
   ArrowRight,
   Sparkles,
   Zap,
-  Heart
+  Heart,
+  Wallet
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import MouseFollower from '../components/ui/MouseFollower';
@@ -156,6 +157,15 @@ const Landing = () => {
                 </motion.a>
               ))}
               <motion.button 
+                onClick={() => window.open('/wallet-setup', '_blank')}
+                className="text-neutral-600 hover:text-primary-500 transition-colors magnetic-hover flex items-center"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Wallet size={16} className="mr-1" />
+                Wallet Setup
+              </motion.button>
+              <motion.button 
                 onClick={handleSignIn}
                 className="text-neutral-600 hover:text-primary-500 transition-colors magnetic-hover"
                 whileHover={{ scale: 1.05 }}
@@ -232,6 +242,17 @@ const Landing = () => {
                   {item}
                 </motion.a>
               ))}
+              <motion.button 
+                onClick={() => {
+                  window.open('/wallet-setup', '_blank');
+                  setMobileMenuOpen(false);
+                }}
+                className="block text-lg text-neutral-600 hover:text-primary-500 transition-colors flex items-center"
+                whileHover={{ x: 10 }}
+              >
+                <Wallet size={16} className="mr-2" />
+                Wallet Setup
+              </motion.button>
               <motion.button 
                 onClick={() => {
                   handleSignIn();
@@ -314,14 +335,15 @@ const Landing = () => {
                     →
                   </motion.span>
                 </motion.button>
-                <motion.a 
-                  href="#features"
-                  className="btn-outline text-lg px-8 py-3"
+                <motion.button 
+                  onClick={() => window.open('/wallet-setup', '_blank')}
+                  className="btn-outline text-lg px-8 py-3 flex items-center justify-center"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  Learn More
-                </motion.a>
+                  <Wallet size={20} className="mr-2" />
+                  Setup Wallet
+                </motion.button>
               </motion.div>
             </motion.div>
             
@@ -508,9 +530,6 @@ const Landing = () => {
           </div>
         </div>
       </section>
-      
-      {/* Rest of the sections with similar animation enhancements... */}
-      {/* I'll continue with the pricing and other sections in the same style */}
       
       {/* Footer */}
       <footer className="bg-secondary-900 text-white py-12 relative overflow-hidden">

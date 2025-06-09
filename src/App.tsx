@@ -12,6 +12,7 @@ import Landing from './pages/Landing';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import NotFound from './pages/NotFound';
+import AlgorandWalletSetup from './pages/AlgorandWalletSetup';
 
 // Patient Pages
 import PatientDashboard from './pages/patient/Dashboard';
@@ -44,11 +45,11 @@ const ProtectedRoute: React.FC<{
   }
 
   if (!currentUser) {
-    return <Navigate to="/login\" state={{ from: location }} replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   if (requiredRole && userProfile?.role !== requiredRole) {
-    return <Navigate to="/dashboard\" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -109,6 +110,7 @@ function App() {
           <Routes location={location}>
             {/* Public Routes */}
             <Route path="/" element={<Landing />} />
+            <Route path="/wallet-setup" element={<AlgorandWalletSetup />} />
             
             {/* Auth Routes */}
             <Route element={<AuthLayout />}>
@@ -122,7 +124,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   {userProfile?.role === 'patient' ? (
-                    <Navigate to="/patient/dashboard\" replace />
+                    <Navigate to="/patient/dashboard" replace />
                   ) : userProfile?.role === 'doctor' ? (
                     <Navigate to="/doctor/dashboard" replace />
                   ) : (
