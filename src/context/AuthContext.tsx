@@ -191,6 +191,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (profileError) {
           console.error('Error creating user profile:', profileError);
           // Don't throw here as the user was created successfully
+        } else {
+          console.log('User profile created successfully');
         }
       }
     } catch (error) {

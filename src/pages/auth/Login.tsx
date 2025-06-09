@@ -37,7 +37,7 @@ const Login = () => {
   ];
 
   // Use the demo site key for testing - this should always work
-  const hcaptchaSiteKey = '10000000-ffff-ffff-ffff-000000000001';
+  const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY || '10000000-ffff-ffff-ffff-000000000001';
   
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,10 +111,10 @@ const Login = () => {
             phoneNumber: '+1-555-0123'
           });
           
-          console.log('Demo account created, now signing in...');
+          console.log('Demo account created successfully');
           
           // Wait a moment for the account to be fully created
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 2000));
           
           // Now try to sign in again
           await signInWithEmail(demoEmail, demoPassword);
@@ -126,10 +126,12 @@ const Login = () => {
           
           // If signup also fails, try one more time to sign in
           try {
+            await new Promise(resolve => setTimeout(resolve, 1000));
             await signInWithEmail(demoEmail, demoPassword);
             navigate('/dashboard');
           } catch (finalError) {
-            throw new Error('Demo login failed. Please try manual registration.');
+            console.error('Final demo login attempt failed:', finalError);
+            setError('Demo login is temporarily unavailable. Please try creating a new account manually or contact support.');
           }
         }
       }
@@ -402,10 +404,10 @@ const Login = () => {
                 </div>
               </div>
 
-              {/* CAPTCHA Section */}
+              {/* CAPTCHA Section - Optional for demo */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-neutral-700 mb-3">
-                  Security Verification
+                  Security Verification (Optional)
                 </label>
                 <div className="border-2 border-neutral-200 rounded-lg p-4 bg-neutral-50">
                   <div className="flex justify-center">
@@ -426,11 +428,9 @@ const Login = () => {
                       ✅ CAPTCHA verified successfully
                     </div>
                   )}
-                  {!captchaToken && (
-                    <div className="mt-3 text-center text-xs text-neutral-500">
-                      Complete the CAPTCHA above to verify you're human
-                    </div>
-                  )}
+                  <div className="mt-3 text-center text-xs text-neutral-500">
+                    CAPTCHA verification is optional for this demo
+                  </div>
                 </div>
               </div>
               
