@@ -53,7 +53,7 @@ const Register = () => {
   ];
 
   // Use the demo site key for testing
-  const hcaptchaSiteKey = '10000000-ffff-ffff-ffff-000000000001';
+  const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY || '10000000-ffff-ffff-ffff-000000000001';
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -99,12 +99,6 @@ const Register = () => {
         return;
       }
 
-      // For demo purposes, we'll skip CAPTCHA validation temporarily
-      // if (!captchaToken) {
-      //   setError('Please complete the CAPTCHA verification');
-      //   return;
-      // }
-
       // Additional validation for doctors
       if (formData.role === 'doctor') {
         if (!formData.specialty || !formData.licenseNumber || !formData.hospitalAffiliation) {
@@ -140,14 +134,14 @@ const Register = () => {
       // Show success message
       setError(
         <div className="text-success-700">
-          Registration successful! Please check your email to verify your account before signing in.
+          Registration successful! You can now sign in with your credentials.
         </div>
       );
 
       // Redirect to login after a delay
       setTimeout(() => {
         navigate('/login');
-      }, 3000);
+      }, 2000);
 
     } catch (err) {
       console.error('Registration error:', err);
@@ -507,26 +501,30 @@ const Register = () => {
                 <label className="block text-sm font-medium text-neutral-700 mb-3">
                   Security Verification
                 </label>
-                <div className="flex justify-center p-4 border border-neutral-200 rounded-lg bg-neutral-50">
-                  <HCaptcha
-                    ref={captchaRef}
-                    sitekey={hcaptchaSiteKey}
-                    onVerify={handleCaptchaVerify}
-                    onExpire={handleCaptchaExpire}
-                    onError={handleCaptchaError}
-                    onLoad={handleCaptchaLoad}
-                    theme="light"
-                    size="normal"
-                  />
-                </div>
-                {captchaToken && (
-                  <div className="mt-2 flex items-center text-sm text-success-600">
-                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    CAPTCHA verified successfully
+                <div className="border border-neutral-200 rounded-lg p-4 bg-neutral-50">
+                  <div className="flex justify-center">
+                    <div className="w-full max-w-sm">
+                      <HCaptcha
+                        ref={captchaRef}
+                        sitekey={hcaptchaSiteKey}
+                        onVerify={handleCaptchaVerify}
+                        onExpire={handleCaptchaExpire}
+                        onError={handleCaptchaError}
+                        onLoad={handleCaptchaLoad}
+                        theme="light"
+                        size="normal"
+                      />
+                    </div>
                   </div>
-                )}
+                  {captchaToken && (
+                    <div className="mt-3 flex items-center justify-center text-sm text-success-600">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      CAPTCHA verified successfully
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex items-center justify-between">
@@ -542,7 +540,7 @@ const Register = () => {
               </div>
 
               <div className="text-center text-sm text-neutral-500">
-                <p>For demo purposes, you can register without completing the CAPTCHA</p>
+                <p>For demo purposes, CAPTCHA verification is optional</p>
               </div>
             </form>
           </motion.div>

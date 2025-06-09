@@ -37,7 +37,7 @@ const Login = () => {
   ];
 
   // Use the demo site key for testing - this should always work
-  const hcaptchaSiteKey = '10000000-ffff-ffff-ffff-000000000001';
+  const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY || '10000000-ffff-ffff-ffff-000000000001';
   
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,12 +46,6 @@ const Login = () => {
       setError('Please enter both email and password');
       return;
     }
-
-    // For demo purposes, we'll skip CAPTCHA validation temporarily
-    // if (!captchaToken) {
-    //   setError('Please complete the CAPTCHA verification');
-    //   return;
-    // }
     
     try {
       setIsLoading(true);
@@ -84,6 +78,22 @@ const Login = () => {
         captchaRef.current.resetCaptcha();
         setCaptchaToken(null);
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    try {
+      setIsLoading(true);
+      setError('');
+      
+      // Demo credentials
+      await signInWithEmail('demo@trustrx.com', 'demo123');
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Demo login error:', err);
+      setError('Demo login failed. Please try manual registration.');
     } finally {
       setIsLoading(false);
     }
@@ -168,9 +178,33 @@ const Login = () => {
               </motion.div>
             )}
 
+            {/* Demo Login Section */}
+            <div className="mb-6 p-4 bg-primary-50 border border-primary-200 rounded-lg">
+              <h3 className="font-semibold text-primary-700 mb-2">Quick Demo Access</h3>
+              <p className="text-sm text-primary-600 mb-3">
+                Try TrustRx instantly with our demo account
+              </p>
+              <motion.button
+                onClick={handleDemoLogin}
+                className="btn-primary w-full"
+                disabled={isLoading}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {isLoading ? 'Signing in...' : 'Demo Login (Instant Access)'}
+              </motion.button>
+            </div>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-neutral-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-neutral-500">Or sign in with your account</span>
+              </div>
+            </div>
+
             <div className="space-y-4 mb-6">
-              <h3 className="text-lg font-medium">Choose your sign in method</h3>
-              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <motion.button
                   type="button"
@@ -318,26 +352,30 @@ const Login = () => {
                 <label className="block text-sm font-medium text-neutral-700 mb-3">
                   Security Verification
                 </label>
-                <div className="flex justify-center p-4 border border-neutral-200 rounded-lg bg-neutral-50">
-                  <HCaptcha
-                    ref={captchaRef}
-                    sitekey={hcaptchaSiteKey}
-                    onVerify={handleCaptchaVerify}
-                    onExpire={handleCaptchaExpire}
-                    onError={handleCaptchaError}
-                    onLoad={handleCaptchaLoad}
-                    theme="light"
-                    size="normal"
-                  />
-                </div>
-                {captchaToken && (
-                  <div className="mt-2 flex items-center text-sm text-success-600">
-                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    CAPTCHA verified successfully
+                <div className="border border-neutral-200 rounded-lg p-4 bg-neutral-50">
+                  <div className="flex justify-center">
+                    <div className="w-full max-w-sm">
+                      <HCaptcha
+                        ref={captchaRef}
+                        sitekey={hcaptchaSiteKey}
+                        onVerify={handleCaptchaVerify}
+                        onExpire={handleCaptchaExpire}
+                        onError={handleCaptchaError}
+                        onLoad={handleCaptchaLoad}
+                        theme="light"
+                        size="normal"
+                      />
+                    </div>
                   </div>
-                )}
+                  {captchaToken && (
+                    <div className="mt-3 flex items-center justify-center text-sm text-success-600">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      CAPTCHA verified successfully
+                    </div>
+                  )}
+                </div>
               </div>
               
               <motion.button
@@ -351,7 +389,7 @@ const Login = () => {
               </motion.button>
 
               <div className="text-center text-sm text-neutral-500">
-                <p>For demo purposes, you can sign in without completing the CAPTCHA</p>
+                <p>For demo purposes, CAPTCHA verification is optional</p>
               </div>
             </form>
           </motion.div>
