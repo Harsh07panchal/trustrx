@@ -52,7 +52,8 @@ const Register = () => {
     { code: '+61', country: 'AU', flag: '🇦🇺' },
   ];
 
-  const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY || 'c0d297b2-8efe-40c8-910e-37b0b6124034';
+  // Use the demo site key for testing
+  const hcaptchaSiteKey = '10000000-ffff-ffff-ffff-000000000001';
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -95,6 +96,11 @@ const Register = () => {
       
       if (formData.password.length < 6) {
         setError('Password should be at least 6 characters');
+        return;
+      }
+
+      if (!captchaToken) {
+        setError('Please complete the CAPTCHA verification');
         return;
       }
 
@@ -164,6 +170,12 @@ const Register = () => {
       } else {
         setError('An unexpected error occurred during registration. Please try again.');
       }
+      
+      // Reset captcha on error
+      if (captchaRef.current) {
+        captchaRef.current.resetCaptcha();
+        setCaptchaToken(null);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -191,6 +203,7 @@ const Register = () => {
 
   const handleCaptchaVerify = (token: string) => {
     setCaptchaToken(token);
+    setError(''); // Clear any previous errors when captcha is completed
   };
 
   const handleCaptchaExpire = () => {
@@ -482,11 +495,22 @@ const Register = () => {
                 )}
               </div>
 
+              {/* CAPTCHA */}
+              <div className="flex justify-center">
+                <HCaptcha
+                  ref={captchaRef}
+                  sitekey={hcaptchaSiteKey}
+                  onVerify={handleCaptchaVerify}
+                  onExpire={handleCaptchaExpire}
+                  onError={handleCaptchaError}
+                />
+              </div>
+
               <div className="flex items-center justify-between">
                 <motion.button
                   type="submit"
                   className="btn-primary w-full"
-                  disabled={isLoading}
+                  disabled={isLoading || !captchaToken}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >

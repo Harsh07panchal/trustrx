@@ -36,13 +36,19 @@ const Login = () => {
     { code: '+61', country: 'AU', flag: '🇦🇺' },
   ];
 
-  const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY || 'c0d297b2-8efe-40c8-910e-37b0b6124034';
+  // Use the demo site key for testing
+  const hcaptchaSiteKey = '10000000-ffff-ffff-ffff-000000000001';
   
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email || !password) {
       setError('Please enter both email and password');
+      return;
+    }
+
+    if (!captchaToken) {
+      setError('Please complete the CAPTCHA verification');
       return;
     }
     
@@ -71,6 +77,12 @@ const Login = () => {
       } else {
         setError('An unexpected error occurred. Please try again.');
       }
+      
+      // Reset captcha on error
+      if (captchaRef.current) {
+        captchaRef.current.resetCaptcha();
+        setCaptchaToken(null);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -79,9 +91,6 @@ const Login = () => {
   const handlePhoneLogin = async () => {
     setError('Phone authentication is currently not available. Please use email login or contact support.');
     return;
-
-    // Phone login implementation would go here
-    // Currently disabled as it requires additional Supabase configuration
   };
 
   const handlePhoneVerification = async () => {
@@ -92,9 +101,6 @@ const Login = () => {
   const handleGoogleLogin = async () => {
     setError('Google authentication is currently not configured. Please use email login.');
     return;
-
-    // Google login implementation would go here
-    // Currently disabled as it requires OAuth configuration
   };
 
   const formatPhoneNumber = (value: string) => {
@@ -119,6 +125,7 @@ const Login = () => {
 
   const handleCaptchaVerify = (token: string) => {
     setCaptchaToken(token);
+    setError(''); // Clear any previous errors when captcha is completed
   };
 
   const handleCaptchaExpire = () => {
@@ -298,11 +305,22 @@ const Login = () => {
                   </button>
                 </div>
               </div>
+
+              {/* CAPTCHA */}
+              <div className="mb-6 flex justify-center">
+                <HCaptcha
+                  ref={captchaRef}
+                  sitekey={hcaptchaSiteKey}
+                  onVerify={handleCaptchaVerify}
+                  onExpire={handleCaptchaExpire}
+                  onError={handleCaptchaError}
+                />
+              </div>
               
               <motion.button
                 type="submit"
                 className="btn-primary w-full mb-4"
-                disabled={isLoading}
+                disabled={isLoading || !captchaToken}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
