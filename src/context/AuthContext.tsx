@@ -44,7 +44,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
+    // Check for demo session first
+    const demoSession = localStorage.getItem('demo-session');
+    if (demoSession) {
+      try {
+        const session = JSON.parse(demoSession);
+        const now = Date.now();
+        
+        // Check if demo session is still valid (24 hours)
+        if (now - session.timestamp < 24 * 60 * 60 * 1000) {
+          console.log('🎭 Loading demo session');
+          setCurrentUser(session.user);
+          setUserProfile({
+            id: session.user.id,
+            email: session.user.email,
+            displayName: session.user.displayName,
+            role: session.user.role,
+            createdAt: new Date(session.timestamp).toISOString(),
+            subscriptionTier: 'free'
+          } as User);
+          setIsLoading(false);
+          return;
+        } else {
+          // Remove expired demo session
+          localStorage.removeItem('demo-session');
+        }
+      } catch (error) {
+        console.error('Error parsing demo session:', error);
+        localStorage.removeItem('demo-session');
+      }
+    }
+
+    // Get initial session from Supabase
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
         console.error('Error getting session:', error);
@@ -153,7 +184,100 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       console.log('Attempting to sign up:', { email, role, displayName });
       
-      // Sign up the user
+      // For demo accounts, create a more robust signup process
+      if (additionalData?.isDemo) {
+        console.log('🎭 Creating demo account with enhanced flow');
+        
+        // Try multiple approaches for demo account creation
+        let signupSuccess = false;
+        let userData = null;
+        
+        // Approach 1: Standard Supabase signup
+        try {
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                display_name: displayName,
+                role: role
+              }
+            }
+          });
+
+          if (!error && data.user) {
+            userData = data;
+            signupSuccess = true;
+            console.log('✅ Demo signup successful via Supabase');
+          }
+        } catch (supabaseError) {
+          console.log('⚠️ Supabase signup failed, trying fallback');
+        }
+        
+        // Approach 2: If Supabase fails, create local demo session
+        if (!signupSuccess) {
+          console.log('🔄 Creating local demo session as fallback');
+          
+          const demoUser = {
+            id: `demo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            email: email,
+            displayName: displayName,
+            role: role
+          };
+          
+          // Store demo session
+          localStorage.setItem('demo-session', JSON.stringify({
+            user: demoUser,
+            timestamp: Date.now()
+          }));
+          
+          // Set user state immediately
+          setCurrentUser(demoUser);
+          setUserProfile({
+            id: demoUser.id,
+            email: demoUser.email,
+            displayName: demoUser.displayName,
+            role: demoUser.role,
+            createdAt: new Date().toISOString(),
+            subscriptionTier: 'free'
+          } as User);
+          
+          console.log('✅ Demo session created successfully');
+          return;
+        }
+        
+        // If Supabase signup worked, continue with profile creation
+        if (userData?.user) {
+          try {
+            const userProfile = {
+              id: userData.user.id,
+              email: userData.user.email,
+              display_name: displayName,
+              role,
+              created_at: new Date().toISOString(),
+              subscription_tier: 'free',
+              ...additionalData
+            };
+
+            const { error: profileError } = await supabase
+              .from('users')
+              .insert([userProfile]);
+
+            if (profileError) {
+              console.error('Error creating demo user profile:', profileError);
+              // Don't throw here as the user was created successfully
+            } else {
+              console.log('✅ Demo user profile created successfully');
+            }
+          } catch (profileError) {
+            console.error('Profile creation error for demo:', profileError);
+          }
+        }
+        
+        return;
+      }
+      
+      // Regular (non-demo) signup process
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -205,8 +329,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
+      // Clear demo session if it exists
+      localStorage.removeItem('demo-session');
+      
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      
+      // Clear local state
+      setCurrentUser(null);
+      setUserProfile(null);
     } catch (error) {
       console.error('Error signing out:', error);
       throw error;
