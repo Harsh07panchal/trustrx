@@ -6,10 +6,16 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Please check your .env file.');
+  console.error('Missing Supabase environment variables');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+});
 
 interface AuthContextType {
   currentUser: any | null;
@@ -39,7 +45,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Error getting session:', error);
+      }
       setCurrentUser(session?.user ?? null);
       if (session?.user) {
         fetchUserProfile(session.user.id);
@@ -51,6 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
       setCurrentUser(session?.user ?? null);
       
       if (session?.user) {
@@ -79,7 +89,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (data) {
-        setUserProfile(data as User);
+        // Convert snake_case to camelCase for compatibility
+        const profile = {
+          id: data.id,
+          email: data.email,
+          displayName: data.display_name,
+          role: data.role,
+          createdAt: data.created_at,
+          subscriptionTier: data.subscription_tier,
+          // Add other fields as needed
+        };
+        setUserProfile(profile as User);
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -108,12 +128,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signInWithEmail = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Sign in error:', error);
+        throw error;
+      }
+
+      console.log('Sign in successful:', data.user?.email);
     } catch (error) {
       console.error('Error signing in with email:', error);
       throw error;
@@ -125,6 +150,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUpWithEmail = async (email: string, password: string, role: UserRole, displayName: string, additionalData?: any) => {
     try {
       setIsLoading(true);
+      
+      console.log('Attempting to sign up:', { email, role, displayName });
       
       // Sign up the user
       const { data, error } = await supabase.auth.signUp({
@@ -138,7 +165,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Signup error:', error);
+        throw error;
+      }
+
+      console.log('Signup successful:', data);
 
       if (data.user) {
         // Create user profile
@@ -158,6 +190,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (profileError) {
           console.error('Error creating user profile:', profileError);
+          // Don't throw here as the user was created successfully
         }
       }
     } catch (error) {

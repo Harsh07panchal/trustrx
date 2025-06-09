@@ -2,12 +2,13 @@ import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Upload, Check, Phone, Mail, ArrowLeft } from 'lucide-react';
 import { AuthApiError } from '@supabase/supabase-js';
-import { supabase } from '../../config/supabase';
+import { useAuth } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import HCaptcha from '@hcaptcha/react-hcaptcha';
 
 const Register = () => {
   const navigate = useNavigate();
+  const { signUpWithEmail } = useAuth();
   const captchaRef = useRef<HCaptcha>(null);
   
   const [signupMethod, setSignupMethod] = useState<'email' | 'phone'>('email');
@@ -64,137 +65,14 @@ const Register = () => {
     }
   };
 
-  const uploadFile = async (file: File, path: string) => {
-    const { data, error } = await supabase.storage
-      .from('documents')
-      .upload(path, file);
-    
-    if (error) throw error;
-    
-    const { data: urlData } = supabase.storage
-      .from('documents')
-      .getPublicUrl(data.path);
-    
-    return urlData.publicUrl;
-  };
-
   const handlePhoneSignup = async () => {
-    if (!phoneNumber.trim()) {
-      setError('Please enter a valid phone number');
-      return;
-    }
-
-    if (!captchaToken) {
-      setError('Please complete the CAPTCHA verification');
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError('');
-
-      const fullPhoneNumber = `${countryCode}${phoneNumber.replace(/\D/g, '')}`;
-      
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: fullPhoneNumber,
-        options: {
-          captchaToken
-        }
-      });
-
-      if (error) throw error;
-
-      setStep('verification');
-    } catch (err) {
-      console.error('Phone signup error:', err);
-      if (err instanceof AuthApiError) {
-        switch (err.message) {
-          case 'Phone number already registered':
-            setError('This phone number is already registered. Please sign in instead.');
-            break;
-          case 'Invalid phone number':
-            setError('Please enter a valid phone number.');
-            break;
-          case 'captcha verification process failed':
-            setError('CAPTCHA verification failed. Please try again.');
-            break;
-          default:
-            setError('Error sending verification code. Please try again.');
-        }
-      } else {
-        setError('An unexpected error occurred. Please try again.');
-      }
-      
-      // Reset captcha on error
-      if (captchaRef.current) {
-        captchaRef.current.resetCaptcha();
-        setCaptchaToken(null);
-      }
-    } finally {
-      setIsLoading(false);
-    }
+    setError('Phone registration is currently not available. Please use email registration.');
+    return;
   };
 
   const handlePhoneVerification = async () => {
-    if (!verificationCode.trim()) {
-      setError('Please enter the verification code');
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError('');
-
-      const fullPhoneNumber = `${countryCode}${phoneNumber.replace(/\D/g, '')}`;
-      
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone: fullPhoneNumber,
-        token: verificationCode,
-        type: 'sms'
-      });
-
-      if (error) throw error;
-
-      if (data.user) {
-        // Create user profile
-        const userProfile = {
-          id: data.user.id,
-          phone: fullPhoneNumber,
-          display_name: formData.name || 'User',
-          role: formData.role,
-          created_at: new Date().toISOString(),
-          subscription_tier: 'free'
-        };
-
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert([userProfile]);
-
-        if (profileError) {
-          console.error('Error creating user profile:', profileError);
-        }
-
-        navigate('/dashboard');
-      }
-    } catch (err) {
-      console.error('Verification error:', err);
-      if (err instanceof AuthApiError) {
-        switch (err.message) {
-          case 'Invalid token':
-            setError('Invalid verification code. Please try again.');
-            break;
-          case 'Token expired':
-            setError('Verification code has expired. Please request a new one.');
-            break;
-          default:
-            setError('Error verifying code. Please try again.');
-        }
-      } else {
-        setError('An unexpected error occurred. Please try again.');
-      }
-    } finally {
-      setIsLoading(false);
-    }
+    setError('Phone verification is currently not available. Please use email registration.');
+    return;
   };
 
   const handleEmailRegister = async (e: React.FormEvent) => {
@@ -220,53 +98,50 @@ const Register = () => {
         return;
       }
 
-      // Sign up the user
-      const { data, error } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            display_name: formData.name,
-            role: formData.role
-          }
+      // Additional validation for doctors
+      if (formData.role === 'doctor') {
+        if (!formData.specialty || !formData.licenseNumber || !formData.hospitalAffiliation) {
+          setError('Please fill in all required doctor information');
+          return;
         }
+      }
+
+      console.log('Attempting registration with:', {
+        email: formData.email,
+        role: formData.role,
+        name: formData.name
       });
 
-      if (error) throw error;
+      // Prepare additional data for doctor profiles
+      const additionalData = formData.role === 'doctor' ? {
+        specialty: formData.specialty,
+        license_number: formData.licenseNumber,
+        hospital_affiliation: formData.hospitalAffiliation,
+        education: formData.education,
+        years_of_experience: parseInt(formData.yearsOfExperience) || 0,
+        verification_status: 'pending'
+      } : {};
 
-      if (data.user) {
-        // Create user profile
-        const userProfile = {
-          id: data.user.id,
-          email: data.user.email,
-          display_name: formData.name,
-          role: formData.role,
-          created_at: new Date().toISOString(),
-          subscription_tier: 'free'
-        };
+      await signUpWithEmail(
+        formData.email, 
+        formData.password, 
+        formData.role, 
+        formData.name,
+        additionalData
+      );
 
-        // Add doctor-specific fields if applicable
-        if (formData.role === 'doctor') {
-          Object.assign(userProfile, {
-            specialty: formData.specialty,
-            license_number: formData.licenseNumber,
-            hospital_affiliation: formData.hospitalAffiliation,
-            education: formData.education,
-            years_of_experience: parseInt(formData.yearsOfExperience) || 0,
-            verification_status: 'pending'
-          });
-        }
+      // Show success message
+      setError(
+        <div className="text-success-700">
+          Registration successful! Please check your email to verify your account before signing in.
+        </div>
+      );
 
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert([userProfile]);
+      // Redirect to login after a delay
+      setTimeout(() => {
+        navigate('/login');
+      }, 3000);
 
-        if (profileError) {
-          console.error('Error creating user profile:', profileError);
-        }
-
-        navigate('/dashboard');
-      }
     } catch (err) {
       console.error('Registration error:', err);
       if (err instanceof AuthApiError) {
@@ -277,11 +152,17 @@ const Register = () => {
           case 'Invalid email':
             setError('Please enter a valid email address.');
             break;
+          case 'Password should be at least 6 characters':
+            setError('Password must be at least 6 characters long.');
+            break;
+          case 'Signup is disabled':
+            setError('New registrations are currently disabled. Please contact support.');
+            break;
           default:
-            setError('Error during registration. Please try again.');
+            setError(`Registration error: ${err.message}`);
         }
       } else {
-        setError('An unexpected error occurred. Please try again.');
+        setError('An unexpected error occurred during registration. Please try again.');
       }
     } finally {
       setIsLoading(false);
@@ -289,35 +170,7 @@ const Register = () => {
   };
 
   const resendVerificationCode = async () => {
-    if (!captchaToken) {
-      setError('Please complete the CAPTCHA verification first');
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      const fullPhoneNumber = `${countryCode}${phoneNumber.replace(/\D/g, '')}`;
-      
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: fullPhoneNumber,
-        options: {
-          captchaToken
-        }
-      });
-
-      if (error) throw error;
-      
-      setError('');
-    } catch (err) {
-      setError('Error resending code. Please try again.');
-      // Reset captcha on error
-      if (captchaRef.current) {
-        captchaRef.current.resetCaptcha();
-        setCaptchaToken(null);
-      }
-    } finally {
-      setIsLoading(false);
-    }
+    setError('Code resend is currently not available. Please use email registration.');
   };
 
   const formatPhoneNumber = (value: string) => {
@@ -401,241 +254,17 @@ const Register = () => {
                 <motion.button
                   type="button"
                   onClick={() => {
-                    setSignupMethod('phone');
-                    setStep('details');
+                    setError('Phone registration is currently not available. Please use email registration.');
                   }}
-                  className={`p-6 border-2 rounded-lg transition-all duration-300 ${
-                    signupMethod === 'phone'
-                      ? 'border-primary-500 bg-primary-50'
-                      : 'border-neutral-200 hover:border-primary-300'
-                  }`}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  className="p-6 border-2 rounded-lg transition-all duration-300 border-neutral-200 hover:border-neutral-300 opacity-50 cursor-not-allowed"
+                  disabled
                 >
-                  <Phone className="h-8 w-8 text-primary-500 mx-auto mb-3" />
-                  <h4 className="font-medium mb-2">Phone Number</h4>
-                  <p className="text-sm text-neutral-600">
-                    Sign up with your phone number via SMS verification
+                  <Phone className="h-8 w-8 text-neutral-400 mx-auto mb-3" />
+                  <h4 className="font-medium mb-2 text-neutral-500">Phone Number</h4>
+                  <p className="text-sm text-neutral-500">
+                    Currently unavailable
                   </p>
                 </motion.button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {step === 'details' && signupMethod === 'phone' && (
-          <motion.div
-            key="phone-details"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="flex items-center mb-6">
-              <button
-                onClick={() => setStep('method')}
-                className="mr-4 p-2 hover:bg-neutral-100 rounded-full transition-colors"
-              >
-                <ArrowLeft size={20} />
-              </button>
-              <h2 className="text-2xl font-bold">Sign up with Phone</h2>
-            </div>
-
-            {error && (
-              <motion.div 
-                className="mb-4 p-3 bg-error-50 border border-error-200 text-error-700 rounded-md"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                {error}
-              </motion.div>
-            )}
-
-            <div className="space-y-6">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-neutral-700 mb-1">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className="input w-full"
-                  placeholder="Enter your full name"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-neutral-700 mb-1">
-                  Phone Number
-                </label>
-                <div className="flex">
-                  <select
-                    value={countryCode}
-                    onChange={(e) => setCountryCode(e.target.value)}
-                    className="input rounded-r-none border-r-0 w-24"
-                  >
-                    {countryCodes.map((country) => (
-                      <option key={country.code} value={country.code}>
-                        {country.flag} {country.code}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="tel"
-                    id="phone"
-                    value={phoneNumber}
-                    onChange={handlePhoneNumberChange}
-                    className="input flex-1 rounded-l-none"
-                    placeholder="(555) 123-4567"
-                    required
-                  />
-                </div>
-                <p className="text-xs text-neutral-500 mt-1">
-                  We'll send you a verification code via SMS
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  I am a:
-                </label>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, role: 'patient' }))}
-                    className={`py-2 px-4 rounded-md border transition-all ${
-                      formData.role === 'patient'
-                        ? 'bg-primary-50 border-primary-500 text-primary-700'
-                        : 'border-neutral-300 text-neutral-700 hover:bg-neutral-50'
-                    }`}
-                  >
-                    Patient
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, role: 'doctor' }))}
-                    className={`py-2 px-4 rounded-md border transition-all ${
-                      formData.role === 'doctor'
-                        ? 'bg-primary-50 border-primary-500 text-primary-700'
-                        : 'border-neutral-300 text-neutral-700 hover:bg-neutral-50'
-                    }`}
-                  >
-                    Doctor
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex justify-center">
-                <HCaptcha
-                  ref={captchaRef}
-                  sitekey={hcaptchaSiteKey}
-                  onVerify={handleCaptchaVerify}
-                  onExpire={handleCaptchaExpire}
-                  onError={handleCaptchaError}
-                />
-              </div>
-
-              <motion.button
-                type="button"
-                onClick={handlePhoneSignup}
-                disabled={isLoading || !phoneNumber.trim() || !formData.name.trim() || !captchaToken}
-                className="btn-primary w-full"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {isLoading ? 'Sending Code...' : 'Send Verification Code'}
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
-
-        {step === 'verification' && (
-          <motion.div
-            key="verification"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="flex items-center mb-6">
-              <button
-                onClick={() => setStep('details')}
-                className="mr-4 p-2 hover:bg-neutral-100 rounded-full transition-colors"
-              >
-                <ArrowLeft size={20} />
-              </button>
-              <h2 className="text-2xl font-bold">Verify Your Phone</h2>
-            </div>
-
-            {error && (
-              <motion.div 
-                className="mb-4 p-3 bg-error-50 border border-error-200 text-error-700 rounded-md"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                {error}
-              </motion.div>
-            )}
-
-            <div className="space-y-6">
-              <div className="text-center">
-                <Phone className="h-16 w-16 text-primary-500 mx-auto mb-4" />
-                <p className="text-neutral-600">
-                  We've sent a verification code to
-                </p>
-                <p className="font-medium text-lg">
-                  {countryCode} {phoneNumber}
-                </p>
-              </div>
-
-              <div>
-                <label htmlFor="verification-code" className="block text-sm font-medium text-neutral-700 mb-1">
-                  Verification Code
-                </label>
-                <input
-                  type="text"
-                  id="verification-code"
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  className="input w-full text-center text-2xl tracking-widest"
-                  placeholder="000000"
-                  maxLength={6}
-                  required
-                />
-              </div>
-
-              <motion.button
-                type="button"
-                onClick={handlePhoneVerification}
-                disabled={isLoading || verificationCode.length !== 6}
-                className="btn-primary w-full"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {isLoading ? 'Verifying...' : 'Verify & Create Account'}
-              </motion.button>
-
-              <div className="text-center">
-                <p className="text-sm text-neutral-600">
-                  Didn't receive the code?{' '}
-                  <button
-                    type="button"
-                    onClick={resendVerificationCode}
-                    disabled={isLoading || !captchaToken}
-                    className="text-primary-600 hover:text-primary-500 font-medium disabled:opacity-50"
-                  >
-                    Resend Code
-                  </button>
-                </p>
-                {!captchaToken && (
-                  <p className="text-xs text-neutral-500 mt-1">
-                    Complete CAPTCHA verification to resend code
-                  </p>
-                )}
               </div>
             </div>
           </motion.div>
@@ -823,7 +452,7 @@ const Register = () => {
 
                     <div>
                       <label htmlFor="education" className="block text-sm font-medium text-neutral-700 mb-1">
-                        Education *
+                        Education
                       </label>
                       <input
                         id="education"
@@ -832,13 +461,12 @@ const Register = () => {
                         value={formData.education}
                         onChange={handleInputChange}
                         className="input w-full"
-                        required
                       />
                     </div>
 
                     <div>
                       <label htmlFor="yearsOfExperience" className="block text-sm font-medium text-neutral-700 mb-1">
-                        Years of Experience *
+                        Years of Experience
                       </label>
                       <input
                         id="yearsOfExperience"
@@ -848,7 +476,6 @@ const Register = () => {
                         value={formData.yearsOfExperience}
                         onChange={handleInputChange}
                         className="input w-full"
-                        required
                       />
                     </div>
                   </div>
