@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { sha256 } from 'js-sha256';
+import { storeHashOnBlockchain } from '../../config/algorand';
 
 const MedicalRecords = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,7 +41,7 @@ const MedicalRecords = () => {
       url: '#',
       thumbnailUrl: '#',
       blockchainVerification: {
-        transactionId: '0x123456789abcdef',
+        transactionId: 'algo-tx-1687689000000-abc123def',
         hash: '0xabcdef123456789',
         timestamp: '2023-06-15T10:30:00Z',
         verified: true
@@ -57,7 +58,7 @@ const MedicalRecords = () => {
       url: '#',
       thumbnailUrl: '#',
       blockchainVerification: {
-        transactionId: '0x987654321fedcba',
+        transactionId: 'algo-tx-1682179200000-def456ghi',
         hash: '0xfedcba987654321',
         timestamp: '2023-04-22T14:15:00Z',
         verified: true
@@ -74,7 +75,7 @@ const MedicalRecords = () => {
       url: '#',
       thumbnailUrl: '#',
       blockchainVerification: {
-        transactionId: '0xabcdef123456789',
+        transactionId: 'algo-tx-1676016000000-ghi789jkl',
         hash: '0x123456789abcdef',
         timestamp: '2023-02-10T09:45:00Z',
         verified: true
@@ -91,7 +92,7 @@ const MedicalRecords = () => {
       url: '#',
       thumbnailUrl: '#',
       blockchainVerification: {
-        transactionId: '0x567890abcdef1234',
+        transactionId: 'algo-tx-1672876800000-jkl012mno',
         hash: '0xdef1234567890abc',
         timestamp: '2023-01-05T16:20:00Z',
         verified: true
@@ -138,66 +139,71 @@ const MedicalRecords = () => {
     maxSize: 10485760 // 10MB
   });
   
-  // Start upload process
+  // Start upload process with blockchain verification
   const handleUpload = async () => {
     if (!uploadingFile) return;
     
     setIsUploading(true);
     setUploadProgress(0);
     
-    // Simulate file upload progress
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 300);
-    
     try {
-      // Calculate file hash (for blockchain verification)
+      // Step 1: Calculate file hash
+      setUploadProgress(20);
       const fileBuffer = await uploadingFile.arrayBuffer();
       const fileHash = sha256(fileBuffer);
+      console.log('File hash calculated:', fileHash);
       
-      // Simulate upload and blockchain transaction
+      // Step 2: Store hash on blockchain
+      setUploadProgress(40);
+      const mockUserAddress = 'ALGO' + Math.random().toString(36).substr(2, 25).toUpperCase();
+      const mockPrivateKey = Math.random().toString(36).substr(2, 32);
+      
+      const blockchainResult = await storeHashOnBlockchain(fileHash, mockUserAddress, mockPrivateKey);
+      
+      if (!blockchainResult.success) {
+        throw new Error(blockchainResult.error || 'Blockchain verification failed');
+      }
+      
+      setUploadProgress(80);
+      
+      // Step 3: Simulate file upload to storage
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setUploadProgress(100);
+      
+      // Step 4: Add new record to the list
+      const newRecord = {
+        id: Date.now().toString(),
+        fileName: uploadingFile.name,
+        fileType: uploadingFile.type,
+        fileSize: uploadingFile.size,
+        uploadDate: new Date().toISOString().split('T')[0],
+        category: uploadCategory,
+        description: uploadDescription,
+        url: '#',
+        thumbnailUrl: '#',
+        blockchainVerification: {
+          transactionId: blockchainResult.transactionId!,
+          hash: `0x${fileHash}`,
+          timestamp: new Date().toISOString(),
+          verified: true
+        }
+      };
+      
+      setRecords(prev => [newRecord, ...prev]);
+      
+      // Reset upload state
       setTimeout(() => {
-        clearInterval(interval);
-        setUploadProgress(100);
-        
-        // Add new record to the list
-        const newRecord = {
-          id: Date.now().toString(),
-          fileName: uploadingFile.name,
-          fileType: uploadingFile.type,
-          fileSize: uploadingFile.size,
-          uploadDate: new Date().toISOString().split('T')[0],
-          category: uploadCategory,
-          description: uploadDescription,
-          url: '#',
-          thumbnailUrl: '#',
-          blockchainVerification: {
-            transactionId: `0x${Math.random().toString(16).slice(2)}`,
-            hash: `0x${fileHash}`,
-            timestamp: new Date().toISOString(),
-            verified: true
-          }
-        };
-        
-        setRecords(prev => [newRecord, ...prev]);
-        
-        // Reset upload state
-        setTimeout(() => {
-          setIsUploading(false);
-          setUploadingFile(null);
-          setUploadDescription('');
-          setShowUploadModal(false);
-        }, 1000);
-      }, 3000);
+        setIsUploading(false);
+        setUploadingFile(null);
+        setUploadDescription('');
+        setShowUploadModal(false);
+        setUploadProgress(0);
+      }, 1000);
+      
     } catch (error) {
       console.error('Upload error:', error);
       setIsUploading(false);
+      // You could show an error message here
     }
   };
   
@@ -313,7 +319,7 @@ const MedicalRecords = () => {
                   {/* Verification badge */}
                   <div className="flex-shrink-0 self-center">
                     {record.blockchainVerification?.verified && (
-                      <div className="verified-badge flex items-center">
+                      <div className="verified-badge flex items-center" title={`Blockchain verified: ${record.blockchainVerification.transactionId}`}>
                         <Shield size={14} className="mr-1" />
                         Verified
                       </div>
@@ -473,7 +479,11 @@ const MedicalRecords = () => {
                   {isUploading && (
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span>Uploading and verifying...</span>
+                        <span>
+                          {uploadProgress < 40 ? 'Calculating hash...' :
+                           uploadProgress < 80 ? 'Storing on blockchain...' :
+                           uploadProgress < 100 ? 'Uploading file...' : 'Complete!'}
+                        </span>
                         <span>{uploadProgress}%</span>
                       </div>
                       <div className="progress-bar">
@@ -482,6 +492,11 @@ const MedicalRecords = () => {
                           style={{ width: `${uploadProgress}%` }}
                         ></div>
                       </div>
+                      {uploadProgress < 100 && (
+                        <p className="text-xs text-neutral-500">
+                          Your file is being secured with blockchain verification...
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -495,6 +510,7 @@ const MedicalRecords = () => {
                   setShowUploadModal(false);
                   setUploadingFile(null);
                   setUploadDescription('');
+                  setUploadProgress(0);
                 }}
                 disabled={isUploading}
               >
