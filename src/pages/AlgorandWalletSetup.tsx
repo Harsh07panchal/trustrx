@@ -202,7 +202,7 @@ const AlgorandWalletSetup = () => {
                   >
                     {isGenerating ? (
                       <>
-                        <RefreshCw className="animate-spin mr-2" size={16} />
+                        <RefreshCw className="animate-spin mr-2\" size={16} />
                         Generating...
                       </>
                     ) : (

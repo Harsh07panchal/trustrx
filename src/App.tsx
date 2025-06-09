@@ -45,11 +45,11 @@ const ProtectedRoute: React.FC<{
   }
 
   if (!currentUser) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/login\" state={{ from: location }} replace />;
   }
 
   if (requiredRole && userProfile?.role !== requiredRole) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/dashboard\" replace />;
   }
 
   return <>{children}</>;
@@ -124,7 +124,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   {userProfile?.role === 'patient' ? (
-                    <Navigate to="/patient/dashboard" replace />
+                    <Navigate to="/patient/dashboard\" replace />
                   ) : userProfile?.role === 'doctor' ? (
                     <Navigate to="/doctor/dashboard" replace />
                   ) : (
