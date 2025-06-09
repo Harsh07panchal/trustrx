@@ -266,6 +266,12 @@ const Login = () => {
   const handleCaptchaExpire = () => {
     setCaptchaToken(null);
   };
+
+  const handleCaptchaError = (err: string) => {
+    console.error('hCaptcha error:', err);
+    setError('CAPTCHA verification failed. Please try again.');
+    setCaptchaToken(null);
+  };
   
   return (
     <div>
@@ -518,6 +524,7 @@ const Login = () => {
                   sitekey={hcaptchaSiteKey}
                   onVerify={handleCaptchaVerify}
                   onExpire={handleCaptchaExpire}
+                  onError={handleCaptchaError}
                 />
               </div>
 
