@@ -4,7 +4,7 @@ import { Eye, EyeOff, Upload, Check, Phone, Mail, ArrowLeft } from 'lucide-react
 import { AuthApiError } from '@supabase/supabase-js';
 import { supabase } from '../../config/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
-import HCaptcha from 'react-hcaptcha';
+import HCaptcha from '@hcaptcha/react-hcaptcha';
 
 const Register = () => {
   const navigate = useNavigate();
