@@ -407,20 +407,16 @@ const Login = () => {
                 <label className="block text-sm font-medium text-neutral-700 mb-3">
                   Security Verification
                 </label>
-                <div className="border-2 border-neutral-200 rounded-lg p-6 bg-neutral-50">
+                <div className="border-2 border-neutral-200 rounded-lg p-4 bg-neutral-50">
                   <div className="flex justify-center">
-                    <div style={{ width: '304px', height: '78px' }}>
-                      <HCaptcha
-                        ref={captchaRef}
-                        sitekey={hcaptchaSiteKey}
-                        onVerify={handleCaptchaVerify}
-                        onExpire={handleCaptchaExpire}
-                        onError={handleCaptchaError}
-                        onLoad={handleCaptchaLoad}
-                        theme="light"
-                        size="normal"
-                      />
-                    </div>
+                    <HCaptcha
+                      ref={captchaRef}
+                      sitekey={hcaptchaSiteKey}
+                      onVerify={handleCaptchaVerify}
+                      onExpire={handleCaptchaExpire}
+                      onError={handleCaptchaError}
+                      onLoad={handleCaptchaLoad}
+                    />
                   </div>
                   {captchaToken && (
                     <div className="mt-3 flex items-center justify-center text-sm text-success-600">
