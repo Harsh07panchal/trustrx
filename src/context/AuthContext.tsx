@@ -5,17 +5,24 @@ import { User, UserRole } from '../types';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables');
+// Create a fallback client or null if environment variables are missing
+let supabase: any = null;
+
+if (supabaseUrl && supabaseAnonKey && 
+    supabaseUrl !== 'your_supabase_project_url_here' && 
+    supabaseAnonKey !== 'your_supabase_anon_key_here') {
+  supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true
+    }
+  });
+} else {
+  console.warn('Supabase environment variables not configured. Running in demo mode.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
-  }
-});
+export { supabase };
 
 interface AuthContextType {
   currentUser: any | null;
@@ -75,38 +82,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // Get initial session from Supabase
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        console.error('Error getting session:', error);
-      }
-      setCurrentUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-      }
-      setIsLoading(false);
-    });
+    // Only try to use Supabase if it's properly configured
+    if (supabase) {
+      // Get initial session from Supabase
+      supabase.auth.getSession().then(({ data: { session }, error }) => {
+        if (error) {
+          console.error('Error getting session:', error);
+        }
+        setCurrentUser(session?.user ?? null);
+        if (session?.user) {
+          fetchUserProfile(session.user.id);
+        }
+        setIsLoading(false);
+      });
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email);
-      setCurrentUser(session?.user ?? null);
-      
-      if (session?.user) {
-        await fetchUserProfile(session.user.id);
-      } else {
-        setUserProfile(null);
-      }
-      
-      setIsLoading(false);
-    });
+      // Listen for auth changes
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
+        setCurrentUser(session?.user ?? null);
+        
+        if (session?.user) {
+          await fetchUserProfile(session.user.id);
+        } else {
+          setUserProfile(null);
+        }
+        
+        setIsLoading(false);
+      });
 
-    return () => subscription.unsubscribe();
+      return () => subscription.unsubscribe();
+    } else {
+      // If Supabase is not configured, just set loading to false
+      setIsLoading(false);
+    }
   }, []);
 
   const fetchUserProfile = async (userId: string) => {
+    if (!supabase) return;
+    
     try {
       const { data, error } = await supabase
         .from('users')
@@ -138,6 +153,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithGoogle = async () => {
+    if (!supabase) {
+      throw new Error('Supabase not configured');
+    }
+    
     try {
       setIsLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
@@ -157,6 +176,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithEmail = async (email: string, password: string) => {
+    if (!supabase) {
+      throw new Error('Supabase not configured');
+    }
+    
     try {
       setIsLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -185,36 +208,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Attempting to sign up:', { email, role, displayName });
       
       // For demo accounts, create a more robust signup process
-      if (additionalData?.isDemo) {
+      if (additionalData?.isDemo || !supabase) {
         console.log('🎭 Creating demo account with enhanced flow');
         
         // Try multiple approaches for demo account creation
         let signupSuccess = false;
         let userData = null;
         
-        // Approach 1: Standard Supabase signup
-        try {
-          const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: {
-                display_name: displayName,
-                role: role
+        // Approach 1: Standard Supabase signup (only if supabase is available)
+        if (supabase) {
+          try {
+            const { data, error } = await supabase.auth.signUp({
+              email,
+              password,
+              options: {
+                data: {
+                  display_name: displayName,
+                  role: role
+                }
               }
-            }
-          });
+            });
 
-          if (!error && data.user) {
-            userData = data;
-            signupSuccess = true;
-            console.log('✅ Demo signup successful via Supabase');
+            if (!error && data.user) {
+              userData = data;
+              signupSuccess = true;
+              console.log('✅ Demo signup successful via Supabase');
+            }
+          } catch (supabaseError) {
+            console.log('⚠️ Supabase signup failed, trying fallback');
           }
-        } catch (supabaseError) {
-          console.log('⚠️ Supabase signup failed, trying fallback');
         }
         
-        // Approach 2: If Supabase fails, create local demo session
+        // Approach 2: If Supabase fails or is not available, create local demo session
         if (!signupSuccess) {
           console.log('🔄 Creating local demo session as fallback');
           
@@ -247,7 +272,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         
         // If Supabase signup worked, continue with profile creation
-        if (userData?.user) {
+        if (userData?.user && supabase) {
           try {
             const userProfile = {
               id: userData.user.id,
@@ -278,6 +303,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       // Regular (non-demo) signup process
+      if (!supabase) {
+        throw new Error('Supabase not configured');
+      }
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -332,8 +361,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clear demo session if it exists
       localStorage.removeItem('demo-session');
       
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      if (supabase) {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+      }
       
       // Clear local state
       setCurrentUser(null);
@@ -345,7 +376,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateUserRole = async (role: UserRole) => {
-    if (!currentUser) return;
+    if (!currentUser || !supabase) return;
     
     try {
       const { error } = await supabase
