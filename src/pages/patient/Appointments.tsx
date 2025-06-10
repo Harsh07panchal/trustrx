@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { CalendarClock, ChevronLeft, ChevronRight, Clock, MapPin, CheckCircle, XCircle, CircleSlash } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { CalendarClock, ChevronLeft, ChevronRight, Clock, MapPin, CheckCircle, XCircle, CircleSlash, Calendar, Edit } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Mock data for appointments
 const appointmentsData = [
@@ -89,6 +89,12 @@ const appointmentsData = [
 const PatientAppointments = () => {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
   const [selectedAppointment, setSelectedAppointment] = useState<typeof appointmentsData[0] | null>(null);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [rescheduleData, setRescheduleData] = useState({
+    date: '',
+    time: '',
+    reason: ''
+  });
   
   // Filter appointments based on active tab
   const filteredAppointments = appointmentsData.filter(appointment => {
@@ -114,6 +120,49 @@ const PatientAppointments = () => {
   // Close appointment details
   const closeAppointmentDetails = () => {
     setSelectedAppointment(null);
+  };
+
+  // Handle reschedule
+  const handleReschedule = (appointment: typeof appointmentsData[0]) => {
+    setSelectedAppointment(appointment);
+    setShowRescheduleModal(true);
+    
+    // Pre-fill with current appointment data
+    const currentDate = new Date(appointment.dateTime);
+    setRescheduleData({
+      date: currentDate.toISOString().split('T')[0],
+      time: currentDate.toTimeString().slice(0, 5),
+      reason: 'Schedule conflict'
+    });
+  };
+
+  // Submit reschedule request
+  const submitReschedule = () => {
+    if (!rescheduleData.date || !rescheduleData.time) {
+      alert('Please select both date and time');
+      return;
+    }
+
+    // In a real app, this would send the reschedule request to the backend
+    console.log('Reschedule request:', {
+      appointmentId: selectedAppointment?.id,
+      newDateTime: `${rescheduleData.date}T${rescheduleData.time}:00`,
+      reason: rescheduleData.reason
+    });
+
+    // Show success message
+    alert('Reschedule request sent! The doctor will review and confirm the new time.');
+    
+    // Close modals
+    setShowRescheduleModal(false);
+    setSelectedAppointment(null);
+    
+    // Reset form
+    setRescheduleData({
+      date: '',
+      time: '',
+      reason: ''
+    });
   };
   
   // Format date for display
@@ -158,7 +207,9 @@ const PatientAppointments = () => {
               <AppointmentCard 
                 key={appointment.id} 
                 appointment={appointment} 
-                onClick={() => openAppointmentDetails(appointment)} 
+                onClick={() => openAppointmentDetails(appointment)}
+                onReschedule={() => handleReschedule(appointment)}
+                showReschedule={activeTab === 'upcoming' && appointment.status !== 'cancelled'}
               />
             ))}
           </div>
@@ -181,93 +232,233 @@ const PatientAppointments = () => {
       </div>
       
       {/* Appointment details modal */}
-      {selectedAppointment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full">
-            <div className="p-6">
-              <div className="flex items-start">
-                <div className="flex-shrink-0 mr-4">
-                  <img 
-                    src={selectedAppointment.doctorPhotoUrl} 
-                    alt={selectedAppointment.doctorName} 
-                    className="h-16 w-16 rounded-lg object-cover"
-                  />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="text-xl font-bold mb-1">{selectedAppointment.doctorName}</h3>
-                      <p className="text-neutral-600">{selectedAppointment.doctorSpecialty}</p>
-                    </div>
-                    <AppointmentStatusBadge status={selectedAppointment.status} />
+      <AnimatePresence>
+        {selectedAppointment && !showRescheduleModal && (
+          <motion.div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div 
+              className="bg-white rounded-xl shadow-xl max-w-2xl w-full"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="p-6">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 mr-4">
+                    <img 
+                      src={selectedAppointment.doctorPhotoUrl} 
+                      alt={selectedAppointment.doctorName} 
+                      className="h-16 w-16 rounded-lg object-cover"
+                    />
                   </div>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="text-xl font-bold mb-1">{selectedAppointment.doctorName}</h3>
+                        <p className="text-neutral-600">{selectedAppointment.doctorSpecialty}</p>
+                      </div>
+                      <AppointmentStatusBadge status={selectedAppointment.status} />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-6 space-y-4">
+                  <div className="bg-neutral-50 rounded-lg p-4 flex items-center justify-between">
+                    <div className="flex items-center">
+                      <CalendarClock size={20} className="text-primary-500 mr-2" />
+                      <div>
+                        <p className="font-medium">{formatDate(selectedAppointment.dateTime)}</p>
+                        <p className="text-neutral-500 text-sm">
+                          {formatTime(selectedAppointment.dateTime)} • {selectedAppointment.duration} minutes
+                        </p>
+                      </div>
+                    </div>
+                    {activeTab === 'upcoming' && selectedAppointment.status !== 'cancelled' && (
+                      <button 
+                        className="flex items-center text-primary-600 hover:text-primary-700 text-sm font-medium"
+                        onClick={() => handleReschedule(selectedAppointment)}
+                      >
+                        <Edit size={16} className="mr-1" />
+                        Reschedule
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="bg-neutral-50 rounded-lg p-4">
+                    <div className="flex items-start">
+                      <MapPin size={20} className="text-primary-500 mr-2 mt-0.5" />
+                      <div>
+                        <p className="font-medium">Office Location</p>
+                        <address className="not-italic text-neutral-600 text-sm">
+                          {selectedAppointment.location.address}<br />
+                          {selectedAppointment.location.city}, {selectedAppointment.location.state} {selectedAppointment.location.zipCode}
+                        </address>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium mb-1">Reason for Visit</h4>
+                    <p className="text-neutral-600">{selectedAppointment.reason}</p>
+                  </div>
+                  
+                  {selectedAppointment.notes && (
+                    <div>
+                      <h4 className="font-medium mb-1">Notes</h4>
+                      <p className="text-neutral-600">{selectedAppointment.notes}</p>
+                    </div>
+                  )}
                 </div>
               </div>
               
-              <div className="mt-6 space-y-4">
-                <div className="bg-neutral-50 rounded-lg p-4 flex items-center justify-between">
-                  <div className="flex items-center">
-                    <CalendarClock size={20} className="text-primary-500 mr-2" />
-                    <div>
-                      <p className="font-medium">{formatDate(selectedAppointment.dateTime)}</p>
-                      <p className="text-neutral-500 text-sm">
-                        {formatTime(selectedAppointment.dateTime)} • {selectedAppointment.duration} minutes
-                      </p>
-                    </div>
-                  </div>
-                  {activeTab === 'upcoming' && selectedAppointment.status !== 'cancelled' && (
-                    <button className="text-neutral-500 hover:text-neutral-700 text-sm underline">
+              <div className="border-t border-neutral-200 p-4 flex justify-between items-center">
+                <button 
+                  className="btn-ghost"
+                  onClick={closeAppointmentDetails}
+                >
+                  Close
+                </button>
+                
+                {activeTab === 'upcoming' && selectedAppointment.status !== 'cancelled' && (
+                  <div className="flex space-x-3">
+                    <button 
+                      className="btn-outline"
+                      onClick={() => handleReschedule(selectedAppointment)}
+                    >
+                      <Edit size={16} className="mr-2" />
                       Reschedule
                     </button>
-                  )}
-                </div>
-                
-                <div className="bg-neutral-50 rounded-lg p-4">
-                  <div className="flex items-start">
-                    <MapPin size={20} className="text-primary-500 mr-2 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Office Location</p>
-                      <address className="not-italic text-neutral-600 text-sm">
-                        {selectedAppointment.location.address}<br />
-                        {selectedAppointment.location.city}, {selectedAppointment.location.state} {selectedAppointment.location.zipCode}
-                      </address>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h4 className="font-medium mb-1">Reason for Visit</h4>
-                  <p className="text-neutral-600">{selectedAppointment.reason}</p>
-                </div>
-                
-                {selectedAppointment.notes && (
-                  <div>
-                    <h4 className="font-medium mb-1">Notes</h4>
-                    <p className="text-neutral-600">{selectedAppointment.notes}</p>
+                    <button 
+                      className="btn text-error-600 hover:bg-error-50 border border-error-300"
+                    >
+                      Cancel Appointment
+                    </button>
                   </div>
                 )}
               </div>
-            </div>
-            
-            <div className="border-t border-neutral-200 p-4 flex justify-between items-center">
-              <button 
-                className="btn-ghost"
-                onClick={closeAppointmentDetails}
-              >
-                Close
-              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Reschedule modal */}
+      <AnimatePresence>
+        {showRescheduleModal && selectedAppointment && (
+          <motion.div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div 
+              className="bg-white rounded-xl shadow-xl max-w-md w-full"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="p-6">
+                <h3 className="text-xl font-bold mb-4">Reschedule Appointment</h3>
+                
+                <div className="mb-4 p-4 bg-neutral-50 rounded-lg">
+                  <div className="flex items-center mb-2">
+                    <img 
+                      src={selectedAppointment.doctorPhotoUrl} 
+                      alt={selectedAppointment.doctorName} 
+                      className="h-10 w-10 rounded-lg object-cover mr-3"
+                    />
+                    <div>
+                      <p className="font-medium">{selectedAppointment.doctorName}</p>
+                      <p className="text-sm text-neutral-500">{selectedAppointment.doctorSpecialty}</p>
+                    </div>
+                  </div>
+                  <div className="text-sm text-neutral-600">
+                    <p><strong>Current:</strong> {formatDate(selectedAppointment.dateTime)} at {formatTime(selectedAppointment.dateTime)}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="reschedule-date" className="block text-sm font-medium text-neutral-700 mb-1">
+                      New Date
+                    </label>
+                    <input
+                      type="date"
+                      id="reschedule-date"
+                      className="input w-full"
+                      value={rescheduleData.date}
+                      onChange={(e) => setRescheduleData(prev => ({ ...prev, date: e.target.value }))}
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="reschedule-time" className="block text-sm font-medium text-neutral-700 mb-1">
+                      New Time
+                    </label>
+                    <input
+                      type="time"
+                      id="reschedule-time"
+                      className="input w-full"
+                      value={rescheduleData.time}
+                      onChange={(e) => setRescheduleData(prev => ({ ...prev, time: e.target.value }))}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="reschedule-reason" className="block text-sm font-medium text-neutral-700 mb-1">
+                      Reason for Rescheduling
+                    </label>
+                    <select
+                      id="reschedule-reason"
+                      className="input w-full"
+                      value={rescheduleData.reason}
+                      onChange={(e) => setRescheduleData(prev => ({ ...prev, reason: e.target.value }))}
+                    >
+                      <option value="Schedule conflict">Schedule conflict</option>
+                      <option value="Personal emergency">Personal emergency</option>
+                      <option value="Work commitment">Work commitment</option>
+                      <option value="Travel">Travel</option>
+                      <option value="Health issue">Health issue</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <p className="text-sm text-amber-700">
+                      <strong>Note:</strong> Your reschedule request will be sent to the doctor for approval. 
+                      You'll receive a confirmation once they review your request.
+                    </p>
+                  </div>
+                </div>
+              </div>
               
-              {activeTab === 'upcoming' && selectedAppointment.status !== 'cancelled' && (
+              <div className="border-t border-neutral-200 p-4 flex justify-end space-x-3">
                 <button 
-                  className="btn text-error-600 hover:bg-error-50 border border-error-300"
+                  className="btn-ghost"
+                  onClick={() => {
+                    setShowRescheduleModal(false);
+                    setSelectedAppointment(null);
+                  }}
                 >
-                  Cancel Appointment
+                  Cancel
                 </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+                <button 
+                  className="btn-primary"
+                  onClick={submitReschedule}
+                >
+                  Send Request
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -276,9 +467,11 @@ const PatientAppointments = () => {
 interface AppointmentCardProps {
   appointment: typeof appointmentsData[0];
   onClick: () => void;
+  onReschedule: () => void;
+  showReschedule: boolean;
 }
 
-const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, onClick }) => {
+const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, onClick, onReschedule, showReschedule }) => {
   const appointmentDate = new Date(appointment.dateTime);
   
   // Format date components
@@ -316,7 +509,21 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, onClick 
                   <h3 className="font-medium">{appointment.doctorName}</h3>
                   <p className="text-neutral-600 text-sm">{appointment.doctorSpecialty}</p>
                 </div>
-                <AppointmentStatusBadge status={appointment.status} />
+                <div className="flex items-center space-x-2">
+                  <AppointmentStatusBadge status={appointment.status} />
+                  {showReschedule && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onReschedule();
+                      }}
+                      className="p-1 text-neutral-400 hover:text-primary-500 transition-colors"
+                      title="Reschedule"
+                    >
+                      <Edit size={16} />
+                    </button>
+                  )}
+                </div>
               </div>
               
               <div className="flex items-center mt-2 text-sm text-neutral-500">
@@ -326,6 +533,8 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, onClick 
                 <MapPin size={14} className="mr-1" />
                 <span>{appointment.location.city}, {appointment.location.state}</span>
               </div>
+              
+              <p className="text-sm text-neutral-600 mt-1">{appointment.reason}</p>
             </div>
           </div>
         </div>
