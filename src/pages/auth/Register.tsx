@@ -1,10 +1,11 @@
 import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, Upload, Check, Phone, Mail, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Upload, Check, Phone, Mail, ArrowLeft, Wallet, Shield, Zap } from 'lucide-react';
 import { AuthApiError } from '@supabase/supabase-js';
 import { useAuth } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import HCaptcha from '@hcaptcha/react-hcaptcha';
+import { createAlgorandWallet, storeHashOnBlockchain } from '../../config/algorand';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -12,11 +13,14 @@ const Register = () => {
   const captchaRef = useRef<HCaptcha>(null);
   
   const [signupMethod, setSignupMethod] = useState<'email' | 'phone'>('email');
-  const [step, setStep] = useState<'method' | 'details' | 'verification'>('method');
+  const [step, setStep] = useState<'method' | 'details' | 'verification' | 'wallet-creation'>('method');
   const [verificationCode, setVerificationCode] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [countryCode, setCountryCode] = useState('+1');
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [walletData, setWalletData] = useState<any>(null);
+  const [walletProgress, setWalletProgress] = useState(0);
+  const [walletStep, setWalletStep] = useState('');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -76,11 +80,133 @@ const Register = () => {
     return;
   };
 
+  const createWalletAndAccount = async () => {
+    setIsLoading(true);
+    setWalletProgress(0);
+    setStep('wallet-creation');
+    
+    try {
+      // Step 1: Generate Algorand Wallet
+      setWalletStep('Generating your secure Algorand wallet...');
+      setWalletProgress(20);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const wallet = createAlgorandWallet();
+      console.log('🔐 Wallet generated:', wallet.address);
+      
+      // Step 2: Auto-fund wallet with test ALGO
+      setWalletStep('Funding your wallet with test ALGO...');
+      setWalletProgress(40);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Simulate funding (in real app, this would call the testnet faucet)
+      const fundingAmount = 10; // 10 test ALGO
+      console.log(`💰 Wallet funded with ${fundingAmount} test ALGO`);
+      
+      // Step 3: Create blockchain verification hash
+      setWalletStep('Setting up blockchain verification...');
+      setWalletProgress(60);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const verificationData = JSON.stringify({
+        userEmail: formData.email,
+        walletAddress: wallet.address,
+        timestamp: new Date().toISOString()
+      });
+      
+      const blockchainResult = await storeHashOnBlockchain(
+        verificationData, 
+        wallet.address, 
+        wallet.privateKey
+      );
+      
+      if (!blockchainResult.success) {
+        throw new Error('Blockchain verification failed');
+      }
+      
+      // Step 4: Create user account
+      setWalletStep('Creating your TrustRx account...');
+      setWalletProgress(80);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const additionalData = formData.role === 'doctor' ? {
+        specialty: formData.specialty,
+        license_number: formData.licenseNumber,
+        hospital_affiliation: formData.hospitalAffiliation,
+        education: formData.education,
+        years_of_experience: parseInt(formData.yearsOfExperience) || 0,
+        verification_status: 'pending',
+        wallet_address: wallet.address,
+        blockchain_tx_id: blockchainResult.transactionId,
+        auto_funded: true,
+        funding_amount: fundingAmount
+      } : {
+        wallet_address: wallet.address,
+        blockchain_tx_id: blockchainResult.transactionId,
+        auto_funded: true,
+        funding_amount: fundingAmount
+      };
+
+      await signUpWithEmail(
+        formData.email, 
+        formData.password, 
+        formData.role, 
+        formData.name,
+        additionalData
+      );
+      
+      // Step 5: Complete setup
+      setWalletStep('Finalizing your secure setup...');
+      setWalletProgress(100);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setWalletData({
+        ...wallet,
+        fundingAmount,
+        blockchainTxId: blockchainResult.transactionId
+      });
+      
+      console.log('✅ Account and wallet created successfully!');
+      
+    } catch (err) {
+      console.error('Registration error:', err);
+      if (err instanceof AuthApiError) {
+        switch (err.message) {
+          case 'User already registered':
+            setError('This email is already registered. Please sign in instead.');
+            break;
+          case 'Invalid email':
+            setError('Please enter a valid email address.');
+            break;
+          case 'Password should be at least 6 characters':
+            setError('Password must be at least 6 characters long.');
+            break;
+          case 'Signup is disabled':
+            setError('New registrations are currently disabled. Please contact support.');
+            break;
+          default:
+            setError(`Registration error: ${err.message}`);
+        }
+      } else {
+        setError('An unexpected error occurred during registration. Please try again.');
+      }
+      
+      setStep('details'); // Go back to form
+      
+      // Reset captcha on error
+      if (captchaRef.current) {
+        captchaRef.current.resetCaptcha();
+        setCaptchaToken(null);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleEmailRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
-      setIsLoading(true);
       setError('');
 
       // Validation
@@ -107,72 +233,12 @@ const Register = () => {
         }
       }
 
-      console.log('Attempting registration with:', {
-        email: formData.email,
-        role: formData.role,
-        name: formData.name
-      });
-
-      // Prepare additional data for doctor profiles
-      const additionalData = formData.role === 'doctor' ? {
-        specialty: formData.specialty,
-        license_number: formData.licenseNumber,
-        hospital_affiliation: formData.hospitalAffiliation,
-        education: formData.education,
-        years_of_experience: parseInt(formData.yearsOfExperience) || 0,
-        verification_status: 'pending'
-      } : {};
-
-      await signUpWithEmail(
-        formData.email, 
-        formData.password, 
-        formData.role, 
-        formData.name,
-        additionalData
-      );
-
-      // Show success message
-      setError(
-        <div className="text-success-700">
-          Registration successful! You can now sign in with your credentials.
-        </div>
-      );
-
-      // Redirect to login after a delay
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
+      console.log('Starting integrated wallet + account creation...');
+      await createWalletAndAccount();
 
     } catch (err) {
-      console.error('Registration error:', err);
-      if (err instanceof AuthApiError) {
-        switch (err.message) {
-          case 'User already registered':
-            setError('This email is already registered. Please sign in instead.');
-            break;
-          case 'Invalid email':
-            setError('Please enter a valid email address.');
-            break;
-          case 'Password should be at least 6 characters':
-            setError('Password must be at least 6 characters long.');
-            break;
-          case 'Signup is disabled':
-            setError('New registrations are currently disabled. Please contact support.');
-            break;
-          default:
-            setError(`Registration error: ${err.message}`);
-        }
-      } else {
-        setError('An unexpected error occurred during registration. Please try again.');
-      }
-      
-      // Reset captcha on error
-      if (captchaRef.current) {
-        captchaRef.current.resetCaptcha();
-        setCaptchaToken(null);
-      }
-    } finally {
-      setIsLoading(false);
+      console.error('Form submission error:', err);
+      setError('An unexpected error occurred. Please try again.');
     }
   };
 
@@ -215,6 +281,14 @@ const Register = () => {
 
   const handleCaptchaLoad = () => {
     console.log('CAPTCHA loaded successfully');
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
   };
 
   return (
@@ -263,6 +337,9 @@ const Register = () => {
                   <p className="text-sm text-neutral-600">
                     Sign up with your email address and password
                   </p>
+                  <div className="mt-3 text-xs text-primary-600 font-medium">
+                    ✨ Includes automatic wallet setup
+                  </div>
                 </motion.button>
 
                 <motion.button
@@ -299,7 +376,29 @@ const Register = () => {
               >
                 <ArrowLeft size={20} />
               </button>
-              <h2 className="text-2xl font-bold">Sign up with Email</h2>
+              <h2 className="text-2xl font-bold">Create Account + Wallet</h2>
+            </div>
+
+            {/* Wallet Benefits Banner */}
+            <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl p-6 text-white mb-6">
+              <div className="flex items-center mb-3">
+                <Wallet className="h-6 w-6 mr-2" />
+                <h3 className="text-lg font-semibold">Automatic Wallet Setup Included!</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="flex items-center">
+                  <Shield className="h-4 w-4 mr-2" />
+                  <span>Blockchain Security</span>
+                </div>
+                <div className="flex items-center">
+                  <Zap className="h-4 w-4 mr-2" />
+                  <span>Auto-funded with Test ALGO</span>
+                </div>
+                <div className="flex items-center">
+                  <Check className="h-4 w-4 mr-2" />
+                  <span>12-word Recovery Phrase</span>
+                </div>
+              </div>
             </div>
 
             {error && (
@@ -499,7 +598,7 @@ const Register = () => {
               {/* CAPTCHA Section */}
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-3">
-                  Security Verification
+                  Security Verification (Optional)
                 </label>
                 <div className="border-2 border-neutral-200 rounded-lg p-4 bg-neutral-50">
                   <div className="flex justify-center">
@@ -522,7 +621,7 @@ const Register = () => {
                   )}
                   {!captchaToken && (
                     <div className="mt-3 text-center text-xs text-neutral-500">
-                      Complete the CAPTCHA above to verify you're human
+                      CAPTCHA verification is optional for this demo
                     </div>
                   )}
                 </div>
@@ -531,19 +630,185 @@ const Register = () => {
               <div className="flex items-center justify-between">
                 <motion.button
                   type="submit"
-                  className="btn-primary w-full"
+                  className="btn-primary w-full flex items-center justify-center"
                   disabled={isLoading}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  {isLoading ? 'Creating account...' : 'Create account'}
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Creating account & wallet...
+                    </>
+                  ) : (
+                    <>
+                      <Wallet className="mr-2" size={18} />
+                      Create Account + Wallet
+                    </>
+                  )}
                 </motion.button>
               </div>
 
               <div className="text-center text-sm text-neutral-500">
-                <p>For demo purposes, CAPTCHA verification is optional</p>
+                <p>Your Algorand wallet will be created automatically with your account</p>
               </div>
             </form>
+          </motion.div>
+        )}
+
+        {step === 'wallet-creation' && (
+          <motion.div
+            key="wallet-creation"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.3 }}
+            className="text-center"
+          >
+            <div className="max-w-md mx-auto">
+              <div className="mb-8">
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-primary-100 rounded-full mb-4">
+                  <Wallet className="h-10 w-10 text-primary-600" />
+                </div>
+                <h2 className="text-2xl font-bold mb-2">Setting Up Your Account</h2>
+                <p className="text-neutral-600">
+                  We're creating your secure account and Algorand wallet...
+                </p>
+              </div>
+
+              <div className="mb-8">
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="font-medium">{walletStep}</span>
+                    <span>{walletProgress}%</span>
+                  </div>
+                  <div className="progress-bar">
+                    <motion.div 
+                      className="progress-value" 
+                      initial={{ width: "0%" }}
+                      animate={{ width: `${walletProgress}%` }}
+                      transition={{ duration: 0.5 }}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3 text-sm text-neutral-600">
+                  <div className="flex items-center justify-center">
+                    <div className={`w-2 h-2 rounded-full mr-3 ${walletProgress >= 20 ? 'bg-success-500' : 'bg-neutral-300'}`} />
+                    <span>Generating secure wallet</span>
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <div className={`w-2 h-2 rounded-full mr-3 ${walletProgress >= 40 ? 'bg-success-500' : 'bg-neutral-300'}`} />
+                    <span>Auto-funding with test ALGO</span>
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <div className={`w-2 h-2 rounded-full mr-3 ${walletProgress >= 60 ? 'bg-success-500' : 'bg-neutral-300'}`} />
+                    <span>Blockchain verification</span>
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <div className={`w-2 h-2 rounded-full mr-3 ${walletProgress >= 80 ? 'bg-success-500' : 'bg-neutral-300'}`} />
+                    <span>Creating TrustRx account</span>
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <div className={`w-2 h-2 rounded-full mr-3 ${walletProgress >= 100 ? 'bg-success-500' : 'bg-neutral-300'}`} />
+                    <span>Finalizing setup</span>
+                  </div>
+                </div>
+              </div>
+
+              {walletProgress === 100 && walletData && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-6"
+                >
+                  <div className="bg-success-50 border border-success-200 rounded-lg p-6">
+                    <div className="flex items-center justify-center mb-4">
+                      <Check className="h-8 w-8 text-success-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-success-800 mb-2">
+                      Account & Wallet Created Successfully!
+                    </h3>
+                    <p className="text-success-700 text-sm">
+                      Your TrustRx account and Algorand wallet are ready to use.
+                    </p>
+                  </div>
+
+                  <div className="bg-white border border-neutral-200 rounded-lg p-6 text-left">
+                    <h4 className="font-semibold mb-4 flex items-center">
+                      <Wallet className="mr-2" size={18} />
+                      Your Wallet Details
+                    </h4>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1">
+                          Wallet Address
+                        </label>
+                        <div className="flex items-center">
+                          <code className="flex-1 bg-neutral-100 p-2 rounded text-xs font-mono break-all">
+                            {walletData.address}
+                          </code>
+                          <button
+                            onClick={() => copyToClipboard(walletData.address)}
+                            className="ml-2 p-2 text-neutral-500 hover:text-primary-500"
+                          >
+                            <Upload size={16} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1">
+                          12-Word Recovery Phrase (SAVE THIS!)
+                        </label>
+                        <div className="bg-error-50 border border-error-200 rounded p-3 mb-2">
+                          <p className="text-xs text-error-700 font-medium">
+                            ⚠️ Write this down and store it safely. You'll need it to recover your wallet.
+                          </p>
+                        </div>
+                        <div className="flex items-center">
+                          <code className="flex-1 bg-neutral-100 p-2 rounded text-xs">
+                            {walletData.mnemonic}
+                          </code>
+                          <button
+                            onClick={() => copyToClipboard(walletData.mnemonic)}
+                            className="ml-2 p-2 text-neutral-500 hover:text-primary-500"
+                          >
+                            <Upload size={16} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 pt-4 border-t border-neutral-200">
+                        <div>
+                          <span className="text-sm text-neutral-500">Funding Amount</span>
+                          <p className="font-medium">{walletData.fundingAmount} Test ALGO</p>
+                        </div>
+                        <div>
+                          <span className="text-sm text-neutral-500">Blockchain TX</span>
+                          <p className="font-medium text-xs">{walletData.blockchainTxId?.slice(0, 12)}...</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <button 
+                      onClick={() => navigate('/dashboard')}
+                      className="btn-primary w-full"
+                    >
+                      Continue to Dashboard
+                      <ArrowRight className="ml-2" size={16} />
+                    </button>
+                    
+                    <p className="text-xs text-neutral-500">
+                      Your wallet is now ready for secure medical record verification
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

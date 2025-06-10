@@ -123,20 +123,62 @@ export const verifyHashOnBlockchain = async (
   }
 };
 
-// Function to create an Algorand wallet (for demo purposes)
+// Enhanced function to create an Algorand wallet with proper structure
 export const createAlgorandWallet = (): { address: string; privateKey: string; mnemonic: string } => {
   // In a real implementation, you would use the Algorand SDK to generate a wallet
-  // This is a mock implementation for demo purposes
+  // This is a mock implementation for demo purposes with realistic-looking data
   
-  const mockAddress = `ALGO${Math.random().toString(36).substr(2, 25).toUpperCase()}`;
-  const mockPrivateKey = Math.random().toString(36).substr(2, 32);
-  const mockMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+  const mockAddress = `ALGO${Math.random().toString(36).substr(2, 25).toUpperCase()}TESTNET`;
+  const mockPrivateKey = Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join('');
+  
+  // Generate a realistic 12-word mnemonic phrase
+  const words = [
+    'abandon', 'ability', 'able', 'about', 'above', 'absent', 'absorb', 'abstract', 'absurd', 'abuse',
+    'access', 'accident', 'account', 'accuse', 'achieve', 'acid', 'acoustic', 'acquire', 'across', 'act',
+    'action', 'actor', 'actress', 'actual', 'adapt', 'add', 'addict', 'address', 'adjust', 'admit',
+    'adult', 'advance', 'advice', 'aerobic', 'affair', 'afford', 'afraid', 'again', 'agent', 'agree',
+    'ahead', 'aim', 'air', 'airport', 'aisle', 'alarm', 'album', 'alcohol', 'alert', 'alien'
+  ];
+  
+  const mockMnemonic = Array.from({length: 12}, () => words[Math.floor(Math.random() * words.length)]).join(' ');
   
   return {
     address: mockAddress,
     privateKey: mockPrivateKey,
     mnemonic: mockMnemonic
   };
+};
+
+// Function to auto-fund wallet with test ALGO
+export const autoFundWallet = async (address: string): Promise<{ success: boolean; amount?: number; txId?: string; error?: string }> => {
+  try {
+    console.log('Auto-funding wallet:', address);
+    
+    // In a real implementation, you would:
+    // 1. Call the Algorand TestNet faucet API
+    // 2. Request test ALGO for the new wallet
+    // 3. Return the funding transaction details
+    
+    // Mock implementation for demo
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    const fundingAmount = 10; // 10 test ALGO
+    const fundingTxId = `funding-tx-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    console.log(`Wallet funded with ${fundingAmount} test ALGO. TX ID: ${fundingTxId}`);
+    
+    return {
+      success: true,
+      amount: fundingAmount,
+      txId: fundingTxId
+    };
+  } catch (error) {
+    console.error('Error auto-funding wallet:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
 };
 
 // Function to get account balance (for demo purposes)
@@ -146,11 +188,35 @@ export const getAccountBalance = async (address: string): Promise<number> => {
     await new Promise(resolve => setTimeout(resolve, 500));
     
     // Return mock balance in microAlgos (1 Algo = 1,000,000 microAlgos)
-    return Math.floor(Math.random() * 10000000); // 0-10 Algos
+    // For newly funded accounts, return 10 ALGO worth
+    return 10000000; // 10 Algos in microAlgos
   } catch (error) {
     console.error('Error getting account balance:', error);
     return 0;
   }
+};
+
+// Function to create wallet backup
+export const createWalletBackup = (walletData: { address: string; privateKey: string; mnemonic: string }) => {
+  const backup = {
+    address: walletData.address,
+    mnemonic: walletData.mnemonic,
+    createdAt: new Date().toISOString(),
+    platform: 'TrustRx',
+    network: 'TestNet'
+  };
+  
+  const backupJson = JSON.stringify(backup, null, 2);
+  const blob = new Blob([backupJson], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `trustrx-wallet-backup-${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 };
 
 // Export configuration for use in other parts of the app
