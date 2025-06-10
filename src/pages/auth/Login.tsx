@@ -99,69 +99,27 @@ const Login = () => {
       setDemoProgress('Creating your demo account...');
       
       // Create demo account directly
-      try {
-        await signUpWithEmail(demoEmail, demoPassword, 'patient', 'Demo User', {
-          dateOfBirth: '1990-01-01',
-          gender: 'other',
-          phoneNumber: '+1-555-0123',
-          isDemo: true
-        });
-        
-        console.log('✅ Demo account created successfully');
-        setDemoProgress('Logging you in...');
-        
-        // Small delay to show progress
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Sign in with the demo account
-        await signInWithEmail(demoEmail, demoPassword);
-        
-        console.log('✅ Demo login successful - redirecting to dashboard');
-        setDemoProgress('Welcome! Redirecting...');
-        
-        // Small delay before redirect
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Navigate to dashboard
-        navigate('/dashboard');
-        
-      } catch (signUpError) {
-        console.error('Demo signup error:', signUpError);
-        
-        // If signup fails, try a different approach
-        const fallbackEmail = `demo-fallback-${Date.now()}@trustrx.demo`;
-        
-        try {
-          setDemoProgress('Trying alternative method...');
-          await signUpWithEmail(fallbackEmail, demoPassword, 'patient', 'Demo User', {
-            isDemo: true
-          });
-          
-          await new Promise(resolve => setTimeout(resolve, 500));
-          await signInWithEmail(fallbackEmail, demoPassword);
-          navigate('/dashboard');
-          
-        } catch (fallbackError) {
-          console.error('Fallback demo login failed:', fallbackError);
-          
-          // Final fallback - just navigate to dashboard with a mock session
-          setDemoProgress('Finalizing demo access...');
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Store demo session in localStorage as fallback
-          localStorage.setItem('demo-session', JSON.stringify({
-            user: {
-              id: `demo-${Date.now()}`,
-              email: demoEmail,
-              displayName: 'Demo User',
-              role: 'patient'
-            },
-            timestamp: Date.now()
-          }));
-          
-          navigate('/dashboard');
-        }
-      }
+      await signUpWithEmail(demoEmail, demoPassword, 'patient', 'Demo User', {
+        dateOfBirth: '1990-01-01',
+        gender: 'other',
+        phoneNumber: '+1-555-0123',
+        isDemo: true
+      });
+      
+      console.log('✅ Demo account created successfully');
+      setDemoProgress('Logging you in...');
+      
+      // Small delay to show progress
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('✅ Demo login successful - redirecting to dashboard');
+      setDemoProgress('Welcome! Redirecting...');
+      
+      // Small delay before redirect
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Navigate to dashboard
+      navigate('/dashboard');
       
     } catch (err) {
       console.error('Demo login error:', err);
