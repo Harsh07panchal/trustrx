@@ -23,6 +23,7 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [demoProgress, setDemoProgress] = useState('');
+  const [showCaptcha, setShowCaptcha] = useState(false);
 
   const countryCodes = [
     { code: '+1', country: 'US/CA', flag: '🇺🇸' },
@@ -427,34 +428,56 @@ const Login = () => {
                 </div>
               </div>
 
-              {/* CAPTCHA Section - Optional for demo */}
+              {/* CAPTCHA Section - Now with better visibility */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-neutral-700 mb-3">
-                  Security Verification (Optional)
-                </label>
-                <div className="border-2 border-neutral-200 rounded-lg p-4 bg-neutral-50">
-                  <div className="flex justify-center">
-                    <HCaptcha
-                      ref={captchaRef}
-                      sitekey={hcaptchaSiteKey}
-                      onVerify={handleCaptchaVerify}
-                      onExpire={handleCaptchaExpire}
-                      onError={handleCaptchaError}
-                      onLoad={handleCaptchaLoad}
-                    />
-                  </div>
-                  {captchaToken && (
-                    <div className="mt-3 flex items-center justify-center text-sm text-success-600">
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      ✅ CAPTCHA verified successfully
-                    </div>
-                  )}
-                  <div className="mt-3 text-center text-xs text-neutral-500">
-                    CAPTCHA verification is optional for this demo
-                  </div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-medium text-neutral-700">
+                    Security Verification
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowCaptcha(!showCaptcha)}
+                    className="text-sm text-primary-600 hover:text-primary-500"
+                  >
+                    {showCaptcha ? 'Hide CAPTCHA' : 'Show CAPTCHA (Optional)'}
+                  </button>
                 </div>
+                
+                {showCaptcha && (
+                  <div className="border-2 border-neutral-200 rounded-lg p-4 bg-white">
+                    <div className="flex justify-center">
+                      <div className="w-full max-w-sm">
+                        <HCaptcha
+                          ref={captchaRef}
+                          sitekey={hcaptchaSiteKey}
+                          onVerify={handleCaptchaVerify}
+                          onExpire={handleCaptchaExpire}
+                          onError={handleCaptchaError}
+                          onLoad={handleCaptchaLoad}
+                          theme="light"
+                          size="normal"
+                        />
+                      </div>
+                    </div>
+                    {captchaToken && (
+                      <div className="mt-3 flex items-center justify-center text-sm text-success-600">
+                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        ✅ CAPTCHA verified successfully
+                      </div>
+                    )}
+                    <div className="mt-3 text-center text-xs text-neutral-500">
+                      CAPTCHA verification is optional for this demo
+                    </div>
+                  </div>
+                )}
+                
+                {!showCaptcha && (
+                  <div className="text-center text-xs text-neutral-500 p-3 bg-neutral-50 rounded-lg">
+                    CAPTCHA verification is optional. Click "Show CAPTCHA" above if you want to test it.
+                  </div>
+                )}
               </div>
               
               <motion.button
