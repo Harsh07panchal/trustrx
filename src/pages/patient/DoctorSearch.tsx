@@ -499,7 +499,9 @@ const DoctorSearch = () => {
                         <circle cx="12" cy="12" r="3" fill="white"/>
                       </svg>
                     `),
-                    scaledSize: new window.google.maps.Size(24, 24),
+                    scaledSize: window.google && window.google.maps && window.google.maps.Size 
+                      ? new window.google.maps.Size(24, 24) 
+                      : undefined,
                   }}
                   title="Your Location"
                 />
@@ -522,7 +524,9 @@ const DoctorSearch = () => {
                         <path d="M14 8H18M16 6V14" stroke="#FF6B6B" stroke-width="2" stroke-linecap="round"/>
                       </svg>
                     `),
-                    scaledSize: new window.google.maps.Size(32, 32),
+                    scaledSize: window.google && window.google.maps && window.google.maps.Size 
+                      ? new window.google.maps.Size(32, 32) 
+                      : undefined,
                   }}
                 />
               ))}
