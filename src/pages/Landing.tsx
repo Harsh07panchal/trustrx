@@ -143,16 +143,26 @@ const Landing = () => {
             
             {/* Desktop navigation */}
             <nav className="hidden md:flex items-center space-x-8">
-              {['Features', 'Pricing', 'Testimonials'].map((item, index) => (
+              {[
+                { name: 'Features', href: '#features' },
+                { name: 'Pricing', href: '/pricing' },
+                { name: 'Testimonials', href: '#testimonials' }
+              ].map((item, index) => (
                 <motion.a
-                  key={item}
-                  href={`#${item.toLowerCase()}`}
+                  key={item.name}
+                  href={item.href}
+                  onClick={(e) => {
+                    if (item.href.startsWith('/')) {
+                      e.preventDefault();
+                      navigate(item.href);
+                    }
+                  }}
                   className="text-neutral-600 hover:text-primary-500 transition-all duration-300 relative group"
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  {item}
+                  {item.name}
                   <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary-500 transition-all duration-300 group-hover:w-full"></span>
                 </motion.a>
               ))}
@@ -228,18 +238,28 @@ const Landing = () => {
               animate={{ x: 0, opacity: 1 }}
               transition={{ staggerChildren: 0.1 }}
             >
-              {['Features', 'Pricing', 'Testimonials'].map((item, index) => (
+              {[
+                { name: 'Features', href: '#features' },
+                { name: 'Pricing', href: '/pricing' },
+                { name: 'Testimonials', href: '#testimonials' }
+              ].map((item, index) => (
                 <motion.a 
-                  key={item}
-                  href={`#${item.toLowerCase()}`}
+                  key={item.name}
+                  href={item.href}
                   className="block text-lg text-neutral-600 hover:text-primary-500 transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={(e) => {
+                    if (item.href.startsWith('/')) {
+                      e.preventDefault();
+                      navigate(item.href);
+                    }
+                    setMobileMenuOpen(false);
+                  }}
                   initial={{ x: -50, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: index * 0.1 }}
                   whileHover={{ x: 10 }}
                 >
-                  {item}
+                  {item.name}
                 </motion.a>
               ))}
               <motion.button 
@@ -336,13 +356,12 @@ const Landing = () => {
                   </motion.span>
                 </motion.button>
                 <motion.button 
-                  onClick={() => window.open('/wallet-setup', '_blank')}
+                  onClick={() => navigate('/pricing')}
                   className="btn-outline text-lg px-8 py-3 flex items-center justify-center"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <Wallet size={20} className="mr-2" />
-                  Setup Wallet
+                  View Pricing
                 </motion.button>
               </motion.div>
             </motion.div>

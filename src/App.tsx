@@ -9,6 +9,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 
 // Pages
 import Landing from './pages/Landing';
+import Pricing from './pages/Pricing';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import NotFound from './pages/NotFound';
@@ -45,11 +46,11 @@ const ProtectedRoute: React.FC<{
   }
 
   if (!currentUser) {
-    return <Navigate to="/login\" state={{ from: location }} replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   if (requiredRole && userProfile?.role !== requiredRole) {
-    return <Navigate to="/dashboard\" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -110,6 +111,7 @@ function App() {
           <Routes location={location}>
             {/* Public Routes */}
             <Route path="/" element={<Landing />} />
+            <Route path="/pricing" element={<Pricing />} />
             <Route path="/wallet-setup" element={<AlgorandWalletSetup />} />
             
             {/* Auth Routes */}
@@ -124,7 +126,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   {userProfile?.role === 'patient' ? (
-                    <Navigate to="/patient/dashboard\" replace />
+                    <Navigate to="/patient/dashboard" replace />
                   ) : userProfile?.role === 'doctor' ? (
                     <Navigate to="/doctor/dashboard" replace />
                   ) : (
