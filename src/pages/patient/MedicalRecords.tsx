@@ -12,9 +12,13 @@ import {
   Download, 
   Trash, 
   Share, 
-  Info
+  Info,
+  ExternalLink,
+  Eye,
+  Copy,
+  Check
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { sha256 } from 'js-sha256';
 import { storeHashOnBlockchain } from '../../config/algorand';
 
@@ -27,6 +31,10 @@ const MedicalRecords = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadDescription, setUploadDescription] = useState('');
   const [uploadCategory, setUploadCategory] = useState('labResults');
+  const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareEmail, setShareEmail] = useState('');
+  const [copiedStates, setCopiedStates] = useState<{[key: string]: boolean}>({});
   
   // Mock data for medical records
   const [records, setRecords] = useState([
@@ -206,6 +214,67 @@ const MedicalRecords = () => {
       // You could show an error message here
     }
   };
+
+  // Handle download
+  const handleDownload = (record: any) => {
+    // In a real app, this would download the actual file
+    console.log('Downloading:', record.fileName);
+    
+    // Create a mock download
+    const element = document.createElement('a');
+    element.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(`Mock file: ${record.fileName}\nDescription: ${record.description}\nBlockchain TX: ${record.blockchainVerification.transactionId}`);
+    element.download = record.fileName;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  // Handle share
+  const handleShare = (record: any) => {
+    setSelectedRecord(record);
+    setShowShareModal(true);
+  };
+
+  // Handle delete
+  const handleDelete = (record: any) => {
+    if (window.confirm(`Are you sure you want to delete "${record.fileName}"? This action cannot be undone.`)) {
+      setRecords(prev => prev.filter(r => r.id !== record.id));
+      console.log('Deleted record:', record.fileName);
+    }
+  };
+
+  // Handle view/preview
+  const handleView = (record: any) => {
+    // In a real app, this would open a preview modal or new tab
+    console.log('Viewing:', record.fileName);
+    alert(`Preview functionality would open here for: ${record.fileName}`);
+  };
+
+  // Copy to clipboard
+  const copyToClipboard = async (text: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedStates(prev => ({ ...prev, [key]: true }));
+      setTimeout(() => {
+        setCopiedStates(prev => ({ ...prev, [key]: false }));
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  // Submit share
+  const submitShare = () => {
+    if (!shareEmail || !selectedRecord) return;
+    
+    // In a real app, this would send a secure share link
+    console.log('Sharing record with:', shareEmail);
+    alert(`Share link sent to ${shareEmail} for "${selectedRecord.fileName}"`);
+    
+    setShowShareModal(false);
+    setShareEmail('');
+    setSelectedRecord(null);
+  };
   
   // Format file size in KB or MB
   const formatFileSize = (bytes: number) => {
@@ -319,22 +388,52 @@ const MedicalRecords = () => {
                   {/* Verification badge */}
                   <div className="flex-shrink-0 self-center">
                     {record.blockchainVerification?.verified && (
-                      <div className="verified-badge flex items-center\" title={`Blockchain verified: ${record.blockchainVerification.transactionId}`}>
+                      <div 
+                        className="verified-badge flex items-center cursor-pointer" 
+                        title={`Blockchain verified: ${record.blockchainVerification.transactionId}`}
+                        onClick={() => copyToClipboard(record.blockchainVerification.transactionId, `tx-${record.id}`)}
+                      >
                         <Shield size={14} className="mr-1" />
-                        Verified
+                        {copiedStates[`tx-${record.id}`] ? (
+                          <>
+                            <Check size={14} className="mr-1" />
+                            Copied!
+                          </>
+                        ) : (
+                          'Verified'
+                        )}
                       </div>
                     )}
                   </div>
                   
                   {/* Actions */}
                   <div className="flex gap-2 self-center">
-                    <button className="p-2 text-neutral-500 hover:text-primary-500 hover:bg-neutral-100 rounded-full transition-colors" title="Download">
+                    <button 
+                      className="p-2 text-neutral-500 hover:text-primary-500 hover:bg-neutral-100 rounded-full transition-colors" 
+                      title="View/Preview"
+                      onClick={() => handleView(record)}
+                    >
+                      <Eye size={18} />
+                    </button>
+                    <button 
+                      className="p-2 text-neutral-500 hover:text-primary-500 hover:bg-neutral-100 rounded-full transition-colors" 
+                      title="Download"
+                      onClick={() => handleDownload(record)}
+                    >
                       <Download size={18} />
                     </button>
-                    <button className="p-2 text-neutral-500 hover:text-primary-500 hover:bg-neutral-100 rounded-full transition-colors" title="Share">
+                    <button 
+                      className="p-2 text-neutral-500 hover:text-primary-500 hover:bg-neutral-100 rounded-full transition-colors" 
+                      title="Share"
+                      onClick={() => handleShare(record)}
+                    >
                       <Share size={18} />
                     </button>
-                    <button className="p-2 text-neutral-500 hover:text-error-500 hover:bg-neutral-100 rounded-full transition-colors" title="Delete">
+                    <button 
+                      className="p-2 text-neutral-500 hover:text-error-500 hover:bg-neutral-100 rounded-full transition-colors" 
+                      title="Delete"
+                      onClick={() => handleDelete(record)}
+                    >
                       <Trash size={18} />
                     </button>
                   </div>
@@ -393,140 +492,231 @@ const MedicalRecords = () => {
       </div>
       
       {/* Upload Modal */}
-      {showUploadModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full">
-            <div className="p-6">
-              <h3 className="text-xl font-bold mb-4">Upload Medical Record</h3>
+      <AnimatePresence>
+        {showUploadModal && (
+          <motion.div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div 
+              className="bg-white rounded-xl shadow-xl max-w-lg w-full"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+            >
+              <div className="p-6">
+                <h3 className="text-xl font-bold mb-4">Upload Medical Record</h3>
+                
+                {!uploadingFile ? (
+                  <div 
+                    {...getRootProps()} 
+                    className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                      isDragActive ? 'border-primary-500 bg-primary-50' : 'border-neutral-300 hover:border-primary-400'
+                    }`}
+                  >
+                    <input {...getInputProps()} />
+                    <FileUp size={36} className="mx-auto mb-4 text-neutral-400" />
+                    <p className="text-neutral-600 mb-2">
+                      {isDragActive
+                        ? 'Drop the file here...'
+                        : 'Drag & drop a file here, or click to select a file'}
+                    </p>
+                    <p className="text-neutral-500 text-sm">
+                      Supports PDF, JPG, PNG (max 10MB)
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center p-3 bg-neutral-50 border border-neutral-200 rounded-lg">
+                      <div className="h-10 w-10 rounded-md bg-primary-100 text-primary-500 flex items-center justify-center mr-3">
+                        {uploadingFile.type.includes('pdf') ? (
+                          <FileText size={20} />
+                        ) : uploadingFile.type.includes('image') ? (
+                          <FileImage size={20} />
+                        ) : (
+                          <FileText size={20} />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{uploadingFile.name}</p>
+                        <p className="text-sm text-neutral-500">{formatFileSize(uploadingFile.size)}</p>
+                      </div>
+                      <button 
+                        className="text-neutral-400 hover:text-neutral-600 p-1" 
+                        onClick={() => setUploadingFile(null)}
+                        disabled={isUploading}
+                      >
+                        <FileX size={18} />
+                      </button>
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="category" className="block text-sm font-medium text-neutral-700 mb-1">
+                        Category
+                      </label>
+                      <select
+                        id="category"
+                        className="input w-full"
+                        value={uploadCategory}
+                        onChange={(e) => setUploadCategory(e.target.value)}
+                        disabled={isUploading}
+                      >
+                        {categories.map(category => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="description" className="block text-sm font-medium text-neutral-700 mb-1">
+                        Description
+                      </label>
+                      <textarea
+                        id="description"
+                        className="input w-full"
+                        rows={3}
+                        placeholder="Add a description for this record..."
+                        value={uploadDescription}
+                        onChange={(e) => setUploadDescription(e.target.value)}
+                        disabled={isUploading}
+                      ></textarea>
+                    </div>
+                    
+                    {isUploading && (
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>
+                            {uploadProgress < 40 ? 'Calculating hash...' :
+                             uploadProgress < 80 ? 'Storing on blockchain...' :
+                             uploadProgress < 100 ? 'Uploading file...' : 'Complete!'}
+                          </span>
+                          <span>{uploadProgress}%</span>
+                        </div>
+                        <div className="progress-bar">
+                          <div 
+                            className="progress-value" 
+                            style={{ width: `${uploadProgress}%` }}
+                          ></div>
+                        </div>
+                        {uploadProgress < 100 && (
+                          <p className="text-xs text-neutral-500">
+                            Your file is being secured with blockchain verification...
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               
-              {!uploadingFile ? (
-                <div 
-                  {...getRootProps()} 
-                  className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                    isDragActive ? 'border-primary-500 bg-primary-50' : 'border-neutral-300 hover:border-primary-400'
-                  }`}
+              <div className="border-t border-neutral-200 p-4 flex justify-end gap-3">
+                <button 
+                  className="btn-ghost"
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setUploadingFile(null);
+                    setUploadDescription('');
+                    setUploadProgress(0);
+                  }}
+                  disabled={isUploading}
                 >
-                  <input {...getInputProps()} />
-                  <FileUp size={36} className="mx-auto mb-4 text-neutral-400" />
-                  <p className="text-neutral-600 mb-2">
-                    {isDragActive
-                      ? 'Drop the file here...'
-                      : 'Drag & drop a file here, or click to select a file'}
-                  </p>
-                  <p className="text-neutral-500 text-sm">
-                    Supports PDF, JPG, PNG (max 10MB)
-                  </p>
+                  Cancel
+                </button>
+                <button 
+                  className="btn-primary flex items-center"
+                  onClick={handleUpload}
+                  disabled={isUploading || !uploadingFile}
+                >
+                  {isUploading ? 'Uploading...' : 'Upload & Verify'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Share Modal */}
+      <AnimatePresence>
+        {showShareModal && selectedRecord && (
+          <motion.div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div 
+              className="bg-white rounded-xl shadow-xl max-w-md w-full"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+            >
+              <div className="p-6">
+                <h3 className="text-xl font-bold mb-4">Share Medical Record</h3>
+                
+                <div className="mb-4 p-4 bg-neutral-50 rounded-lg">
+                  <div className="flex items-center mb-2">
+                    <FileText size={20} className="text-primary-500 mr-2" />
+                    <span className="font-medium">{selectedRecord.fileName}</span>
+                  </div>
+                  <p className="text-sm text-neutral-600">{selectedRecord.description}</p>
                 </div>
-              ) : (
+
                 <div className="space-y-4">
-                  <div className="flex items-center p-3 bg-neutral-50 border border-neutral-200 rounded-lg">
-                    <div className="h-10 w-10 rounded-md bg-primary-100 text-primary-500 flex items-center justify-center mr-3">
-                      {uploadingFile.type.includes('pdf') ? (
-                        <FileText size={20} />
-                      ) : uploadingFile.type.includes('image') ? (
-                        <FileImage size={20} />
-                      ) : (
-                        <FileText size={20} />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{uploadingFile.name}</p>
-                      <p className="text-sm text-neutral-500">{formatFileSize(uploadingFile.size)}</p>
-                    </div>
-                    <button 
-                      className="text-neutral-400 hover:text-neutral-600 p-1" 
-                      onClick={() => setUploadingFile(null)}
-                      disabled={isUploading}
-                    >
-                      <FileX size={18} />
-                    </button>
-                  </div>
-                  
                   <div>
-                    <label htmlFor="category" className="block text-sm font-medium text-neutral-700 mb-1">
-                      Category
+                    <label htmlFor="share-email" className="block text-sm font-medium text-neutral-700 mb-1">
+                      Share with (Email)
                     </label>
-                    <select
-                      id="category"
+                    <input
+                      type="email"
+                      id="share-email"
                       className="input w-full"
-                      value={uploadCategory}
-                      onChange={(e) => setUploadCategory(e.target.value)}
-                      disabled={isUploading}
-                    >
-                      {categories.map(category => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="doctor@example.com"
+                      value={shareEmail}
+                      onChange={(e) => setShareEmail(e.target.value)}
+                    />
                   </div>
-                  
-                  <div>
-                    <label htmlFor="description" className="block text-sm font-medium text-neutral-700 mb-1">
-                      Description
-                    </label>
-                    <textarea
-                      id="description"
-                      className="input w-full"
-                      rows={3}
-                      placeholder="Add a description for this record..."
-                      value={uploadDescription}
-                      onChange={(e) => setUploadDescription(e.target.value)}
-                      disabled={isUploading}
-                    ></textarea>
+
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <p className="text-sm text-amber-700">
+                      <strong>Note:</strong> A secure, time-limited link will be sent to the recipient. 
+                      They'll be able to view the record and verify its blockchain authenticity.
+                    </p>
                   </div>
-                  
-                  {isUploading && (
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>
-                          {uploadProgress < 40 ? 'Calculating hash...' :
-                           uploadProgress < 80 ? 'Storing on blockchain...' :
-                           uploadProgress < 100 ? 'Uploading file...' : 'Complete!'}
-                        </span>
-                        <span>{uploadProgress}%</span>
-                      </div>
-                      <div className="progress-bar">
-                        <div 
-                          className="progress-value" 
-                          style={{ width: `${uploadProgress}%` }}
-                        ></div>
-                      </div>
-                      {uploadProgress < 100 && (
-                        <p className="text-xs text-neutral-500">
-                          Your file is being secured with blockchain verification...
-                        </p>
-                      )}
-                    </div>
-                  )}
+
+                  <div className="text-xs text-neutral-500">
+                    <p><strong>Blockchain TX:</strong> {selectedRecord.blockchainVerification.transactionId}</p>
+                    <p><strong>Hash:</strong> {selectedRecord.blockchainVerification.hash}</p>
+                  </div>
                 </div>
-              )}
-            </div>
-            
-            <div className="border-t border-neutral-200 p-4 flex justify-end gap-3">
-              <button 
-                className="btn-ghost"
-                onClick={() => {
-                  setShowUploadModal(false);
-                  setUploadingFile(null);
-                  setUploadDescription('');
-                  setUploadProgress(0);
-                }}
-                disabled={isUploading}
-              >
-                Cancel
-              </button>
-              <button 
-                className="btn-primary flex items-center"
-                onClick={handleUpload}
-                disabled={isUploading || !uploadingFile}
-              >
-                {isUploading ? 'Uploading...' : 'Upload & Verify'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              </div>
+              
+              <div className="border-t border-neutral-200 p-4 flex justify-end space-x-3">
+                <button 
+                  className="btn-ghost"
+                  onClick={() => {
+                    setShowShareModal(false);
+                    setShareEmail('');
+                    setSelectedRecord(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="btn-primary"
+                  onClick={submitShare}
+                  disabled={!shareEmail}
+                >
+                  Send Secure Link
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
