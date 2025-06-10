@@ -29,6 +29,21 @@ const createIndexerClient = () => {
   return new algosdk.Indexer(config.token, config.indexer, config.port);
 };
 
+// Browser-compatible utility functions
+const uint8ArrayToHex = (uint8Array: Uint8Array): string => {
+  return Array.from(uint8Array).map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+const stringToUint8Array = (str: string): Uint8Array => {
+  return new TextEncoder().encode(str);
+};
+
+const hexToUint8Array = (hexString: string): Uint8Array => {
+  const matches = hexString.match(/.{1,2}/g);
+  if (!matches) throw new Error('Invalid hex string');
+  return new Uint8Array(matches.map(byte => parseInt(byte, 16)));
+};
+
 // Real function to create an Algorand wallet
 export const createAlgorandWallet = (): { address: string; privateKey: string; mnemonic: string } => {
   try {
@@ -38,8 +53,8 @@ export const createAlgorandWallet = (): { address: string; privateKey: string; m
     // Convert secret key to mnemonic
     const mnemonic = algosdk.secretKeyToMnemonic(account.sk);
     
-    // Convert secret key to hex string for storage
-    const privateKey = Buffer.from(account.sk).toString('hex');
+    // Convert secret key to hex string for storage (browser-compatible)
+    const privateKey = uint8ArrayToHex(account.sk);
     
     console.log('🔐 Real Algorand wallet generated:', account.addr);
     
@@ -96,12 +111,12 @@ export const storeHashOnBlockchain = async (
       from: userAddress,
       to: userAddress, // Send to self (0 ALGO transaction)
       amount: 0, // 0 ALGO
-      note: new Uint8Array(Buffer.from(hash, 'utf8')),
+      note: stringToUint8Array(hash), // Browser-compatible conversion
       suggestedParams: params
     });
     
-    // Sign the transaction
-    const privateKeyUint8 = new Uint8Array(Buffer.from(privateKey, 'hex'));
+    // Sign the transaction (browser-compatible)
+    const privateKeyUint8 = hexToUint8Array(privateKey);
     const signedTxn = algosdk.signTransaction(txn, privateKeyUint8);
     
     // Submit the transaction
@@ -147,9 +162,18 @@ export const verifyHashOnBlockchain = async (
       throw new Error('Transaction not found');
     }
     
-    // Extract note from transaction
+    // Extract note from transaction (browser-compatible)
     const note = txnInfo.transaction.note;
-    const storedHash = note ? Buffer.from(note, 'base64').toString('utf8') : '';
+    let storedHash = '';
+    if (note) {
+      // Convert base64 to string in browser-compatible way
+      const binaryString = atob(note);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      storedHash = new TextDecoder().decode(bytes);
+    }
     
     // Verify hash matches
     const verified = storedHash === expectedHash;

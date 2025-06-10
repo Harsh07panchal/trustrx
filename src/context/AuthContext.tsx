@@ -218,9 +218,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: displayName
       });
 
-      // For demo accounts or when Supabase is not available
-      if (additionalData?.isDemo || !supabase || !supabase.auth?.signUp) {
-        console.log('🎭 Creating demo account');
+      // For demo accounts or when Supabase is not available, create demo account
+      if (additionalData?.isDemo || !supabase || !supabase.auth?.signUp || typeof supabase.auth.signUp !== 'function') {
+        console.log('🎭 Creating demo account (Supabase not available or demo mode)');
         
         const demoUser = {
           id: `demo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
